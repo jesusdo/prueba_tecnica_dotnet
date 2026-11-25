@@ -1,5 +1,11 @@
 # Arquitectura aprobada
 
+## Acceso a datos T04
+
+PropertyMaintenanceDbContext se registra Scoped con AddDbContext y la misma clave de conexión de DbUp. DbUp termina antes de atender peticiones; EF sólo consulta/persiste, sin modificar el esquema. LeaseRepository usa AnyAsync con límites inclusivos. MaintenanceRequestRepository devuelve modelos de negocio separados mediante mapeo explícito y consultas AsNoTracking; no expone IQueryable ni entidades EF.
+
+AddAsync guarda una solicitud y devuelve el modelo con identidad, fecha UTC, estado y RowVersion generados. En T04 el repositorio es responsable de SaveChanges para esa operación atómica. SaveChanges usa la transacción nativa EF; futuras operaciones compuestas deberán delimitar una transacción explícita desde su servicio con el contexto Scoped compartido. No se introduce Unit of Work ni repositorio genérico. La lectura por ID es sólo de consulta; la edición y transiciones quedan pendientes.
+
 ## Decisión
 
 La solución usa un monolito ASP.NET Core en capas pragmáticas dentro de `PropertyMaintenance.Api`, acompañado por dos proyectos de pruebas. El flujo es:

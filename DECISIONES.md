@@ -1,5 +1,19 @@
 # Decisiones técnicas
 
+## T04: acceso a datos Database First
+
+Evidencia: tool restore, restore y build ejecutados dentro de dev con código 0. Ejecución final xUnit sobre `PropertyMaintenanceDb_T04_Integration`: 15 aprobadas, 0 fallidas, 0 omitidas; UnitTests sigue sin casos. Primera ejecución detectó dos errores de test (renovación del mismo inquilino y formato decimal normalizado); se corrigieron los fixtures/aserciones, no el esquema. Concurrencia: dos DbContext independientes sobre una conexión/transacción compartida para rollback, primer escritor genera nueva RowVersion y segundo recibe DbUpdateConcurrencyException exacta. UPDATE de Leases válido y rechazo INSERT solapado con SQL 51021 comprobados con trigger habilitado.
+
+Limitación documentada: no se añadió operación de alta de Lease; recuperación de IDENTITY tras INSERT válido con INSTEAD OF sigue pendiente de una estrategia específica. Advertencias NU1902/NU1903 de System.Security.Cryptography.Pkcs 9.0.4 reportadas por restauración; no se agregaron paquetes fuera de los tres solicitados para resolverlas. Risk: item 5 (dependencias) e item 4 (verificación de concurrencia). No commit ni push.
+
+- EF Core SqlServer, Design y dotnet-ef local alineados en 10.0.7 estable para net10.0. Design con PrivateAssets=all. No se instalaron herramientas globales.
+- Scaffold real desde SQL Server local, base T03_Demo con cinco migraciones DbUp verificadas. Once tablas explícitas, sin journals ni OnConfiguring. SQL sigue siendo la fuente de verdad; migraciones existentes intactas.
+- Contexto Scoped, conexión compartida con DbUp, inicialización previa a peticiones, sin creación de esquema por EF ni logging sensible.
+- UseSqlOutputClause(false) y DeleteBehavior.NoAction en clase parcial, sin alterar salida generada. ROWVERSION generado/token de concurrencia; mapeo explícito clona bytes y devuelve fechas con Kind UTC. DATETIME2 no transporta zona horaria.
+- Repositorios mínimos concretos: consulta AnyAsync de contrato inclusivo; consulta por ID AsNoTracking y alta de solicitud con SaveChanges atómico. Sin servicio, transiciones, endpoints ni repositorio genérico. AddAsync sólo recibe los campos de alta; identidad, fecha, estado inicial y RowVersion los genera SQL y se devuelven en un modelo nuevo.
+- Regeneración mediante database/scaffold.sh, conexión externa y herramienta local; --force requiere revisar previamente la separación de archivos generados y personalizados.
+- Uso efectivo de IA: consulta de documentación oficial, ejecución del scaffold, implementación y revisión de mapeos, repositorios, pruebas SQL reales y documentación. No se afirma validación humana.
+
 ## T03: seed y evidencia real
 
 - Se reutilizó DbUp sin nuevas dependencias. Catálogos obligatorios en 005; demo embebida con journal `DemoSeedVersions` y transacción por script, habilitada explícitamente mediante configuración (false por defecto).

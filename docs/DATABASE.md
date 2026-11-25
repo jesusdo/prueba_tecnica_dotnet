@@ -1,5 +1,26 @@
 # Diseño aprobado de base de datos
 
+## T04: EF Core Database First
+
+EF Core SqlServer, Design y herramienta local dotnet-ef usan 10.0.7 estable. Design tiene PrivateAssets=all. El scaffold real se generó contra `PropertyMaintenanceDb_T03_Demo`, cuyo journal contenía 001–005. Se incluyeron exclusivamente las once tablas aprobadas; no los journals. El código generado se versiona en Entities y Context; personalizaciones sólo en `PropertyMaintenanceDbContext.Custom.cs`.
+
+Desde la raíz dentro de dev, después de aprovisionar una base local e inicializarla mediante la API/DbUp, configurar `ConnectionStrings__PropertyMaintenance` por entorno. Dentro de Docker usar `Server=db,1433`; desde Windows `Server=localhost,1433`. Ejecutar:
+
+```bash
+dotnet tool restore
+bash database/scaffold.sh
+```
+
+El script contiene el comando exacto scaffold y la lista explícita de tablas, namespaces, directorios y `--no-onconfiguring`. Usa la conexión del entorno sin guardarla en el código. Para regenerar: aplicar primero nuevos scripts DbUp; revisar el diff existente; identificar los doce archivos generados (once entidades y contexto); ejecutar `bash database/scaffold.sh --force` únicamente tras verificar que ningún archivo generado contiene personalizaciones. El archivo `.Custom.cs` no es salida del scaffold. Revisar el diff y ejecutar las pruebas. No ejecutar migraciones EF.
+
+Mapeo: `date` a DateOnly/DateOnly?, datetime2(3) a DateTime/DateTime? con precisión 3, importes a decimal(18,2), tinyint a byte, smallint a short. SQL Server genera identidades, CreatedAt, estado inicial y RowVersion. RowVersion es byte[], generado al insertar/actualizar y token de concurrencia. Las navegaciones y nulabilidad proceden del esquema. Las FKs usan NoAction en la personalización para conservar restricciones al eliminar. Los IDs fijos de catálogos se conservan.
+
+DATETIME2 no almacena zona: por contrato todos los eventos son UTC. EF materializa DateTime Unspecified; el mapeo al modelo de negocio establece Kind=Utc sin convertir la hora. Los contratos usan DateOnly y no sufren conversión de zona.
+
+El scaffold detectó HasTrigger; además se declara UseSqlOutputClause(false) para Leases. La compatibilidad se verifica escribiendo y rechazando solapamientos con el trigger habilitado. La recuperación de IDENTITY en INSERT con un trigger INSTEAD OF debe verificarse específicamente antes de añadir operaciones de creación de contratos; T04 sólo expone consulta de contratos.
+
+Pruebas: configurar `PROPERTY_MAINTENANCE_TEST_CONNECTION` con SQL Server local y una base cuyo nombre empiece por `PropertyMaintenanceDb_T04_`. Aprovisionarla separadamente mediante CREATE DATABASE. La fixture aplica DbUp/seed; nunca elimina la base principal. Ejecutar desde dev `dotnet test PropertyMaintenance.slnx`. Una configuración ausente produce fallo visible, no éxito simulado.
+
 ## T03: datos de demostración
 
 Las migraciones obligatorias incluyen `005_SeedCatalogs.sql`: verifica ID, Code y Name y falla ante correspondencias incompatibles. No modifica 001–004. Los catálogos existen aunque se deshabilite la demostración.

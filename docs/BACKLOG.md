@@ -1,5 +1,9 @@
 # Backlog de implementación
 
+## Estado al completar T04
+
+T04 implementada: scaffold real de once tablas, EF Core/Design/dotnet-ef local 10.0.7, contexto Scoped, mapeo explícito, repositorios mínimos y pruebas SQL Server. Resultado real: 15 pruebas aprobadas, cero fallidas y cero omitidas en la ejecución final. T05 sigue pendiente; sus operaciones no incluidas en T04 no se implementaron.
+
 ## Estado al completar T03
 
 T03 completada: migración 005 de catálogos, demo transaccional y opcional con journal independiente, 17 validaciones SQL aprobadas, segunda ejecución con datos íntegramente idénticos, caso sin demo y rollback ante fallo verificados en bases aisladas. Restore/build/test ejecutados en dev (sin pruebas C# reales todavía). T04 y posteriores pendientes. Este estado sustituye las notas históricas de tareas anteriores.
@@ -12,7 +16,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T01 | Esquema SQL y validaciones | T00 | Once tablas; FKs restrictivas; checks, defaults, catálogos, índices y RowVersion; validaciones ejecutadas con rollback | Completada |
 | T02 | DbUp y trigger de contratos superpuestos | T01 | DbUp con journal y scripts embebidos; trigger multirregistro y concurrente; validaciones y build exitosos | Completada |
 | T03 | Seed reproducible e idempotente | T01, T02 | Datos mínimos aprobados; segunda ejecución no duplica; invariantes de negocio preservadas | Completada |
-| T04 | Contexto EF Database First y mapeos | T01 | Entidades de persistencia generadas desde SQL; contexto y mapeos explícitos; sin migraciones EF | Pendiente |
+| T04 | Contexto EF Database First y mapeos | T01 | Entidades de persistencia generadas desde SQL; contexto y mapeos explícitos; sin migraciones EF | Completada |
 | T05 | Repositorios específicos | T04 | Repositorios parametrizados para propiedades, contratos, solicitudes, técnicos y visitas; pruebas de acceso | Pendiente |
 | T06 | Servicios y reglas de solicitudes | T05 | RN01–RN12 implementadas y probadas mediante interfaz pública del servicio | Pendiente |
 | T07 | Endpoints REST de escritura | T06 | Crear solicitud, registrar visita y cambiar estado con códigos HTTP y Problem Details consistentes | Pendiente |

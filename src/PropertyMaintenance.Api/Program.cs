@@ -1,4 +1,7 @@
 using PropertyMaintenance.Api.DataAccess.Migrations;
+using Microsoft.EntityFrameworkCore;
+using PropertyMaintenance.Api.DataAccess.Context;
+using PropertyMaintenance.Api.DataAccess.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddSingleton<DatabaseMigrator>();
+builder.Services.AddDbContext<PropertyMaintenanceDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("PropertyMaintenance")));
+builder.Services.AddScoped<ILeaseRepository, LeaseRepository>();
+builder.Services.AddScoped<IMaintenanceRequestRepository, MaintenanceRequestRepository>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
