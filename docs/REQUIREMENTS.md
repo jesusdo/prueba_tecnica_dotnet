@@ -1,5 +1,13 @@
 # Requisitos aprobados
 
+## Contrato implementado T06
+
+`PATCH /api/maintenance-requests/{id}/status` recibe `status` obligatorio como texto y `technicianId` nullable. ID de solicitud positivo; ID de técnico positivo cuando aparece. Assigned exige técnico; los otros destinos prohíben ese campo. Se rechazan miembros JSON internos/desconocidos. Respuesta 200 reutiliza MaintenanceRequestResponse, sin RowVersion ni ETags.
+
+Únicas transiciones: Open → Assigned/Cancelled, Assigned → InProgress/Cancelled, InProgress → Closed. Solicitar el estado actual, reabrir o reasignar no está permitido. Assigned requiere técnico existente activo, sin condición de especialidad. Las transiciones posteriores conservan al técnico y no revalidan su actividad. Closed requiere al menos una visita; Cancelled no requiere visitas. Ambos terminales fijan ClosedAt UTC a precisión de milisegundos, nunca anterior a CreatedAt.
+
+Errores: 400 INVALID_INPUT o validación/formato; 404 REQUEST_NOT_FOUND/TECHNICIAN_NOT_FOUND; 409 INVALID_STATUS_TRANSITION/TECHNICIAN_INACTIVE/VISIT_REQUIRED/CONCURRENCY_CONFLICT. Deadlocks/timeouts conservan el código separado CONCURRENT_CHANGE de T05. Los errores inesperados usan 500 UNEXPECTED_ERROR. T07 no está implementada.
+
 ## Contrato implementado T05
 
 `POST /api/maintenance-requests` recibe `unitId`, `tenantId`, `category`, `priority` y `description`. IDs positivos, categoría obligatoria de hasta 100 caracteres, descripción obligatoria de hasta 2000. Se recortan espacios exteriores al crear. Prioridades textuales Low/Medium/High/Urgent; no se aceptan números, valores desconocidos ni prioridad omitida. Los campos ajenos al DTO (incluidos los controlados por el servidor) se rechazan con 400.

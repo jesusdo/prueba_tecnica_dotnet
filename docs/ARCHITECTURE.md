@@ -1,5 +1,17 @@
 # Arquitectura aprobada
 
+## Estados y concurrencia T06
+
+Las cinco reglas de transición se centralizan en MaintenanceRequestModel.CanTransition mediante switch; DTO y servicio validan el contrato de asignación. MaintenanceRequestService administra una TransactionScope ReadCommitted (async, 30 segundos) que engloba lectura, validaciones y guardado. La lectura de solicitud es AsNoTracking y no conserva bloqueo compartido después de leer: permite una actualización concurrente y la detecta mediante RowVersion. No se aplicó Serializable a toda la operación.
+
+TechnicianRepository.GetActiveStatusAsync usa consulta parametrizada con HOLDLOCK sólo sobre el técnico consultado para mantener estable su existencia/actividad hasta el commit. HasVisitsAsync usa EXISTS/AnyAsync y HOLDLOCK sobre las visitas de la solicitud, evitando que desaparezca la evidencia de cierre antes de confirmar; no carga colecciones. Las transacciones se mantienen cortas.
+
+UpdateStatusAsync adjunta una entidad con los campos del modelo leído, marca únicamente StatusId/TechnicianId/ClosedAt y fija expresamente OriginalValue de RowVersion. No vuelve a leer una versión más reciente. SQL compara RequestId y RowVersion; cero filas produce DbUpdateConcurrencyException, que el handler traduce a 409 CONCURRENCY_CONFLICT. No hay reintentos automáticos. Un deadlock o lock timeout es un conflicto distinto (CONCURRENT_CHANGE), no evidencia de control optimista.
+
+### Coordinación requerida para T07
+
+Insertar Visits no cambia RowVersion de MaintenanceRequests. T07 deberá tomar un bloqueo de actualización sobre la fila padre antes de validar Assigned/InProgress y mantenerlo hasta insertar y confirmar la visita. La actualización terminal de T06 debe competir por esa misma fila: si confirmó primero, T07 debe leer el estado terminal y rechazar; si la visita bloqueó primero, la transición espera a que termine. No basta leer el estado y luego insertar sin coordinación. Debe conservarse orden de bloqueos coherente (padre antes de visitas) y tratar posibles deadlocks sin reintentar reglas obsoletas; el HOLDLOCK de visitas de T06 puede participar en ese orden y deberá revisarse durante T07. Esta tarea documenta el protocolo pendiente, sin registrar visitas mediante la API ni prometer protección para escritores que omitan ese protocolo.
+
 ## Creación de solicitudes T05
 
 Flujo: MaintenanceRequestsController → MaintenanceRequestService → repositorios específicos T04 y consultas Exists de Unit/Tenant → SQL Server. El Controller sólo recibe/valida DTO nativo y devuelve respuesta explícita; los modelos EF no forman contratos HTTP.

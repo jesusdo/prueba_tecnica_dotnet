@@ -22,7 +22,8 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger, IPr
             Title = known?.Message ?? (conflict ? "A concurrent change prevented this operation. Retry the request." : "An unexpected error occurred."),
             Instance = context.Request.Path
         };
-        detail.Extensions["code"] = known?.Code ?? (conflict ? "CONCURRENT_CHANGE" : "UNEXPECTED_ERROR");
+        detail.Extensions["code"] = known?.Code ?? (exception is DbUpdateConcurrencyException
+            ? "CONCURRENCY_CONFLICT" : conflict ? "CONCURRENT_CHANGE" : "UNEXPECTED_ERROR");
         context.Response.StatusCode = status;
         await problems.WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = detail });
         return true;

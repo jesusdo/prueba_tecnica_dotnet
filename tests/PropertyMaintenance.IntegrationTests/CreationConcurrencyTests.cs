@@ -24,6 +24,8 @@ public sealed class CreationConcurrencyTests(SqlFixture fixture)
     }
     private sealed class FailingRequests(IMaintenanceRequestRepository inner) : IMaintenanceRequestRepository
     {
+        public Task<bool> HasVisitsAsync(int id, CancellationToken cancellationToken = default) => inner.HasVisitsAsync(id, cancellationToken);
+        public Task<MaintenanceRequestModel> UpdateStatusAsync(MaintenanceRequestModel model, CancellationToken cancellationToken = default) => inner.UpdateStatusAsync(model, cancellationToken);
         public Task<MaintenanceRequestModel?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => inner.GetByIdAsync(id, cancellationToken);
         public async Task<MaintenanceRequestModel> AddAsync(MaintenanceRequestModel model, CancellationToken cancellationToken = default)
         {
@@ -39,7 +41,7 @@ public sealed class CreationConcurrencyTests(SqlFixture fixture)
         var lease = await db.Leases.AsNoTracking().FirstAsync(l => l.EndDate == null);
         var gate = new GatedLease(new LeaseRepository(db));
         var service = new MaintenanceRequestService(new UnitRepository(db), new TenantRepository(db), gate,
-            new MaintenanceRequestRepository(db), TimeProvider.System);
+            new MaintenanceRequestRepository(db), TimeProvider.System, new TechnicianRepository(db));
         Task<MaintenanceRequestModel>? creation = null;
         int? createdId = null;
         try
@@ -83,7 +85,7 @@ public sealed class CreationConcurrencyTests(SqlFixture fixture)
         var lease = await db.Leases.AsNoTracking().FirstAsync(l => l.EndDate == null);
         var before = await db.MaintenanceRequests.CountAsync();
         var service = new MaintenanceRequestService(new UnitRepository(db), new TenantRepository(db), new LeaseRepository(db),
-            new FailingRequests(new MaintenanceRequestRepository(db)), TimeProvider.System);
+            new FailingRequests(new MaintenanceRequestRepository(db)), TimeProvider.System, new TechnicianRepository(db));
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(lease.UnitId, lease.TenantId,
             "T05 rollback", RequestPriorityId.Low, "T05 rollback fixture"));
         Assert.Equal("Isolated failure after SaveChanges.", error.Message);

@@ -1,5 +1,9 @@
 # Backlog de implementación
 
+## Alcance vigente T06
+
+T06 implementa exclusivamente PATCH de estado: cinco transiciones, asignación, cierre con visita, cancelación, ProblemDetails, RowVersion original y pruebas de 25 pares/HTTP/concurrencia independiente. No registra visitas ni implementa T07. El protocolo requerido para T07 está documentado en ARCHITECTURE.md.
+
 ## Alcance vigente T05
 
 La instrucción T05 del responsable sustituye la tarea anterior de repositorios completos: implementar únicamente creación de solicitudes, validación, servicio, POST, ProblemDetails, Swagger UI y pruebas. T06 y posteriores no se ejecutaron. La evidencia de pruebas y ejecución real se registra en DECISIONES.md.
@@ -22,7 +26,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T03 | Seed reproducible e idempotente | T01, T02 | Datos mínimos aprobados; segunda ejecución no duplica; invariantes de negocio preservadas | Completada |
 | T04 | Contexto EF Database First y mapeos | T01 | Entidades de persistencia generadas desde SQL; contexto y mapeos explícitos; sin migraciones EF | Completada |
 | T05 | Crear solicitud de mantenimiento | T04 | POST 201 con contrato vigente, 400/404/409/500 ProblemDetails; transacción consistente; pruebas unitarias, HTTP y concurrentes; T04 sin regresiones | Completada |
-| T06 | Servicios y reglas de solicitudes | T05 | RN01–RN12 implementadas y probadas mediante interfaz pública del servicio | Pendiente |
+| T06 | Transiciones de estado de solicitudes | T05 | Cinco de 25 pares permitidos; PATCH 200/400/404/409; técnico activo y visitas; RowVersion original; conflicto SQL real traducido a HTTP 409 | Completada |
 | T07 | Endpoints REST de escritura | T06 | Crear solicitud, registrar visita y cambiar estado con códigos HTTP y Problem Details consistentes | Pendiente |
 | T08 | Endpoints REST de consulta | T04, T05 | Unidades por propiedad, listado paginado y tenant history con filtros y costos correctos | Pendiente |
 | T09 | Stored procedures de reportes | T01, T05 | Ambos reportes parametrizados; agregaciones correctas, edificios/técnicos sin actividad y orden aprobado | Pendiente |

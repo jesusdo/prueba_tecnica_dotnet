@@ -18,13 +18,27 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<MaintenanceRequestService>();
 builder.Services.AddScoped<IUnitRepository, UnitRepository>();
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
+builder.Services.AddScoped<ITechnicianRepository, TechnicianRepository>();
 builder.Services.AddSingleton<DatabaseMigrator>();
 builder.Services.AddDbContext<PropertyMaintenanceDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("PropertyMaintenance")));
 builder.Services.AddScoped<ILeaseRepository, LeaseRepository>();
 builder.Services.AddScoped<IMaintenanceRequestRepository, MaintenanceRequestRepository>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;
+    options.AddOperationTransformer((operation, context, cancellationToken) =>
+    {
+        // Route integers are not JSON bodies. Describe their parsed type without
+        // the integer/string union produced by the web JSON number handling.
+        foreach (var parameter in operation.Parameters ?? [])
+            if (parameter.In == Microsoft.OpenApi.ParameterLocation.Path
+                && parameter.Schema is Microsoft.OpenApi.OpenApiSchema { Format: "int32" } schema)
+                schema.Type = Microsoft.OpenApi.JsonSchemaType.Integer;
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 
