@@ -1,5 +1,37 @@
 # Diseño aprobado de base de datos
 
+## T03: datos de demostración
+
+Las migraciones obligatorias incluyen `005_SeedCatalogs.sql`: verifica ID, Code y Name y falla ante correspondencias incompatibles. No modifica 001–004. Los catálogos existen aunque se deshabilite la demostración.
+
+`Database:SeedDemoData` es `false` por defecto en todos los entornos. Para habilitar: establecer `Database__SeedDemoData=true` y `ConnectionStrings__PropertyMaintenance` antes de iniciar la API. DbUp ejecuta el recurso embebido `database/seed/001_SeedDemoData.sql` después del esquema, con una transacción por script y journal independiente `dbo.DemoSeedVersions`. El journal y la carga confirman juntos; un fallo aborta el arranque. Nunca insertar manualmente entradas del journal.
+
+La carga inicial exige las siete tablas de negocio vacías, tomando bloqueos de tabla durante la transacción. No sobrescribe ni elimina información. Las ejecuciones posteriores consultan el journal y no cambian fechas ni registros. No se soporta ejecutar inicializadores concurrentes; iniciar una sola instancia durante el aprovisionamiento.
+
+Se captura una única referencia UTC a medianoche, persistida en `MaintenanceRequests.Description` como `T03|NNN|UTC=yyyy-MM-ddTHH:mm:ssZ|...`. Todas las fechas se derivan de ella. Las validaciones utilizan esa referencia, no la fecha del día: los datos históricos envejecen deliberadamente. Los contratos futuros son la única excepción a eventos sin fechas futuras. Los identificadores se resuelven por claves de fixtures, sin suponer valores IDENTITY.
+
+Distribución: 3 edificios, 30 unidades (18 departamentos y 12 locales), 20 inquilinos, 26 contratos (18 vigentes, 6 vencidos, 2 futuros), 5 técnicos (4 activos y 1 inactivo), 100 solicitudes (15/20/20/35/10 por estado) y 110 visitas. Hay un técnico activo sin actividad, cancelaciones desde Open y Assigned, visitas gratuitas, múltiples visitas, técnicos diferentes al asignado y actividad histórica del técnico actualmente inactivo. El seed representa estados finales históricos; no ejecuta transiciones mediante la API.
+
+### Ejecución local
+
+Aprovisionar una base nueva identificada para pruebas; no reutilizar una base existente sin journal. Desde PowerShell:
+
+```powershell
+docker compose run --rm -e Database__SeedDemoData=true -e "ConnectionStrings__PropertyMaintenance=Server=db,1433;Database=PropertyMaintenanceDb_T03_Demo;User Id=sa;Password=Dev_Passw0rd_2026;TrustServerCertificate=True;" dev dotnet run --project src/PropertyMaintenance.Api
+```
+
+La contraseña mostrada es únicamente la credencial ficticia local de la plantilla. Usar la configuración propia si fue cambiada. Para iniciar sin datos ficticios, reemplazar `true` por `false` y seleccionar una base limpia distinta.
+
+### Validación desde SSMS
+
+1. Conectar al SQL Server local `localhost,1433` con la configuración de desarrollo.
+2. Seleccionar explícitamente `PropertyMaintenanceDb_T03_Demo` en el selector de base.
+3. Abrir y ejecutar completo `database/validation/ValidateSeed.sql`; esperar PASS 01–17. Cualquier incumplimiento produce THROW.
+4. Consultar `SELECT * FROM dbo.SchemaVersions; SELECT * FROM dbo.DemoSeedVersions;`: cinco migraciones y un seed.
+5. Reiniciar la API con la misma configuración; el journal debe seguir con una sola entrada de seed y los datos permanecer intactos.
+
+Prueba reproducible de rollback: en otra base aislada ya migrada sin seed, crear temporalmente `CREATE TRIGGER dbo.T03_InjectSeedFailure ON dbo.Visits AFTER INSERT AS THROW 51999, N'T03 isolated seed failure probe.',1;` (en batch separado). Iniciar la API con seed habilitado. Debe abortar; comprobar cero filas en las siete tablas de negocio y ausencia de entrada exitosa en DemoSeedVersions. Retirar sólo ese trigger de prueba mediante `DROP TRIGGER dbo.T03_InjectSeedFailure;`. No alterar los scripts definitivos.
+
 ## Parámetros generales
 
 - Base: `PropertyMaintenanceDb`.

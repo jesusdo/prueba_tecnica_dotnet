@@ -74,4 +74,38 @@ public sealed class DatabaseMigrator
                 "Database migration could not be completed; API startup is aborted.");
         }
     }
+
+    public void ApplyDemoSeed(string connectionString)
+    {
+        try
+        {
+            var engine = DeployChanges.To.SqlDatabase(connectionString)
+                .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly(),
+                    name => name.StartsWith("PropertyMaintenance.Api.database.seed.", StringComparison.Ordinal))
+                .JournalToSqlTable("dbo", "DemoSeedVersions")
+                .WithTransactionPerScript()
+                .Build();
+
+            var pending = engine.GetScriptsToExecute();
+            if (pending.Count == 0)
+            {
+                logger.LogInformation("Demo seed already applied; no changes made.");
+                return;
+            }
+
+            var result = engine.PerformUpgrade();
+            if (!result.Successful)
+            {
+                throw new InvalidOperationException("Demo seed failed; API startup is aborted.");
+            }
+
+            logger.LogInformation("Demo seed completed: {ScriptCount} script(s).", pending.Count);
+        }
+        catch (Exception)
+        {
+            // Do not include provider exceptions or connection strings in startup errors.
+            logger.LogError("Demo seed failed; API startup is aborted. Inspect the isolated database prerequisites.");
+            throw new InvalidOperationException("Demo seed failed; API startup is aborted.");
+        }
+    }
 }

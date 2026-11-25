@@ -18,4 +18,10 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\database\seed\*.sql">
+      <LogicalName>PropertyMaintenance.Api.database.seed.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

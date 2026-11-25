@@ -22,6 +22,10 @@ using (var scope = app.Services.CreateScope())
 {
     var databaseMigrator = scope.ServiceProvider.GetRequiredService<DatabaseMigrator>();
     databaseMigrator.Apply(connectionString);
+    if (app.Configuration.GetValue<bool>("Database:SeedDemoData"))
+    {
+        databaseMigrator.ApplyDemoSeed(connectionString);
+    }
 }
 
 // Configure the HTTP request pipeline.

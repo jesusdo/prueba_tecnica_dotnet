@@ -1,5 +1,18 @@
 # Decisiones técnicas
 
+## T03: seed y evidencia real
+
+- Se reutilizó DbUp sin nuevas dependencias. Catálogos obligatorios en 005; demo embebida con journal `DemoSeedVersions` y transacción por script, habilitada explícitamente mediante configuración (false por defecto).
+- Se exige una base sin registros de negocio para evitar mezclar fixtures con datos existentes. El journal proporciona idempotencia; no se utiliza la presencia superficial de filas como señal de éxito.
+- Referencia única a medianoche UTC persistida en descripciones; identificadores resueltos por claves conocidas. No se modificaron migraciones 001–004 ni se deshabilitaron restricciones.
+- En `PropertyMaintenanceDb_T03_Demo`: 3/30/20/26/5/100/110 filas en las siete tablas de negocio; contratos 18 vigentes, 6 históricos y 2 futuros; solicitudes 15/20/20/35/10. ValidateSeed pasó 17 controles.
+- Segunda inicialización: cero scripts pendientes. Comparación íntegra de JSON ordenado de las siete tablas antes/después (52 701 caracteres, incluyendo fechas, identidades y RowVersion): idéntico.
+- En `PropertyMaintenanceDb_T03_Empty`, seed deshabilitado: siete tablas de negocio vacías, catálogos 2/3/4/5 y cinco migraciones registradas.
+- En `PropertyMaintenanceDb_T03_Failure`, un trigger temporal sobre Visits arrojó 51999: API abortó, cero filas de negocio y journal del seed ausente. Se retiró el trigger temporal. No se eliminaron bases.
+- Restore/build/test en dev: código 0; build con 18 advertencias NU1901/NU1902 transitivas ya conocidas, cero errores. Test runner ejecutado sin pruebas C# reales. Los procesos de API exitosos se detuvieron con timeout tras observar arranque; su código 1 por timeout no se confunde con fallo de migración.
+- Uso efectivo de IA: implementación de SQL/C#, validaciones y documentación; revisión del resultado y corrección del parseo de UTC y de los escenarios de cancelación. No se afirma revisión humana.
+- Riesgos: ejecutar un único inicializador durante despliegue; fechas relativas a la referencia inicial, no se actualizan automáticamente. No se ejecutaron commit ni push. T04 permanece pendiente.
+
 ## Decisiones aprobadas
 
 | Decisión | Justificación |
