@@ -51,6 +51,17 @@ Todos usan `TINYINT`, `Code` único y `Name`: `UnitTypes` (`Apartment=1`, `Comme
 - `database/validation/ValidateSchema.sql` valida metadatos del esquema.
 - `database/validation/ValidateConstraints.sql` prueba casos positivos y negativos dentro de una transacción que termina en rollback.
 
-## Fuera de T01
+## DbUp y T02
 
-T01 no implementa trigger de superposición, seed definitivo, DbUp, scaffold EF, entidades C#, repositorios, endpoints ni stored procedures.
+- `DatabaseMigrator` ejecuta los recursos embebidos con DbUp y registra el journal en `dbo.SchemaVersions`.
+- Las migraciones se ejecutan en orden numérico y con transacción por script. Una migración fallida detiene el arranque de la API.
+- `ValidateSchema.sql` permite únicamente `dbo.SchemaVersions` como tabla adicional del journal; cualquier otra tabla inesperada sigue provocando fallo.
+- `004_CreateLeaseOverlapTrigger.sql` crea `dbo.TR_Leases_PreventOverlap` para `INSERT` y `UPDATE`.
+- El trigger adquiere `sp_getapplock` exclusivo, asociado a la transacción, para cada `UnitId` afectado y en orden ascendente. Luego valida el lote completo contra `dbo.Leases` usando intervalos inclusivos y sin `NOLOCK`.
+- La adopción de una base T01 existente sin journal no se realiza automáticamente: primero se debe verificar o recrear la base en un entorno controlado. DbUp no marca scripts como ejecutados sin haberlos aplicado.
+
+## Fuera de T02
+
+T02 no implementa seed definitivo, scaffold EF, entidades C#, repositorios, endpoints ni stored procedures.
+
+Nota T02: el trigger es `INSTEAD OF INSERT, UPDATE`; adquiere `sp_getapplock` exclusivo por `UnitId` afectado, en orden ascendente y antes de escribir en la tabla base. La validación de restricciones usa fixtures aislados y verifica su limpieza final.

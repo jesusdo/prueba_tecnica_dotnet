@@ -50,3 +50,29 @@ No se implementaron tablas SQL, scaffold EF, entidades de negocio, endpoints, re
 - Se utilizó IA para convertir las especificaciones aprobadas en scripts T-SQL, validaciones de metadatos y casos transaccionales de prueba.
 - Se verificaron los scripts contra el SQL Server local del contenedor `db`; los resultados reales se registran al cierre de T01.
 - No se afirmó validación humana ni se incorporaron funcionalidades fuera de los entregables de T01.
+
+## Decisiones de T02
+
+- Se agregó `DbUp` 5.0.40 al proyecto API. Es la dependencia estable seleccionada para ejecutar scripts SQL Server sin introducir un proyecto adicional ni migraciones EF.
+- Los scripts se embeben desde `database/migrations` con nombres lógicos `PropertyMaintenance.Api.database.migrations.<numero>_<nombre>.sql`. Los prefijos numéricos proporcionan orden determinista y el ensamblado publicado contiene los mismos recursos.
+- Se usa `dbo.SchemaVersions` como journal y `WithTransactionPerScript()`. Así, un fallo revierte el script actual, conserva el historial real de scripts completados y aborta el arranque.
+- No se adopta automáticamente la base T01 existente sin journal. La primera ejecución sobre una base limpia o aislada es el mecanismo de verificación; una base existente requiere recreación controlada o un procedimiento de baseline autorizado.
+- El trigger usa `sys.sp_getapplock` exclusivo, propietario de la transacción, por `UnitId` afectado y en orden ascendente. Esto serializa operaciones incompatibles incluso cuando no existían filas previas y reduce deadlocks por orden inverso. La comprobación set-based detecta conflictos dentro del lote y contra filas existentes.
+- El primer intento de DbUp reveló que `CREATE TRIGGER` debe ser la primera sentencia del batch; se eliminó el `SET NOCOUNT ON` externo y se conservó dentro del cuerpo del trigger. No se ocultó ni se marcó 004 como aplicada durante el fallo.
+
+## Evidencia de T02
+
+- Base limpia: cuatro scripts aplicados y cuatro entradas observadas en `dbo.SchemaVersions`.
+- Segunda ejecución: cero scripts pendientes, sin reejecución.
+- Base con fallo intermedio: journal conservó 001–003; la ejecución posterior aplicó únicamente 004.
+- Validación de leases: 15 casos requeridos aprobados, incluido error fijo 51021 y rollback de fixtures.
+- Concurrencia real: dos conexiones independientes; una sola lease incompatible confirmó, las compatibles confirmaron ambas y las unidades diferentes confirmaron ambas.
+- Restore/build/test reales finalizaron con código 0. El restore/build reportó advertencias NU1901/NU1902 transitorias existentes en la cadena de dependencias; no se ocultaron.
+
+## Registro de uso de IA en T02
+
+- Se utilizó IA para consultar la documentación de DbUp, implementar el componente, el trigger y las validaciones, y revisar los resultados observados.
+- La ejecución real se realizó contra SQL Server local en bases aisladas; los resultados y el fallo inicial del batch quedaron documentados.
+- No se ejecutaron commits ni push.
+
+CorrecciÃ³n verificada: el trigger quedÃ³ como `INSTEAD OF INSERT, UPDATE` para adquirir los applocks antes de la escritura base; las validaciones finales cubrieron los 15 casos de leases, las restricciones y tres pares de sesiones concurrentes sin deadlock.

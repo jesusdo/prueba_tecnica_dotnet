@@ -38,12 +38,18 @@ Exceptions/
 
 `DataAccess/Migrations` es el espacio de scripts versionados y soporte DbUp; no se utilizarán migraciones de EF Core.
 
+## Inicialización de base de datos
+
+`DatabaseMigrator` se registra como servicio de `Api` y se ejecuta antes de `app.Run()`. Los scripts de `database/migrations` se embeben en el ensamblado con nombres deterministas y DbUp los ordena por nombre. El journal `dbo.SchemaVersions` evita repetir scripts ya aplicados. La estrategia es una transacción por script: un fallo revierte el script actual, conserva el journal de scripts completados y aborta el arranque de la API.
+
+La base de datos se aprovisiona separadamente. En Azure SQL o producción puede crearse previamente con permisos controlados y luego ejecutar la inicialización con una identidad autorizada para DDL.
+
 ## Persistencia y contratos
 
 EF Core 10 se usará Database First cuando T01 implemente el esquema. SQL Server es la fuente de verdad. Las entidades de persistencia no se expondrán directamente: los servicios trabajarán con modelos de negocio y los mapeos serán explícitos.
 
 No se incorporan repositorios genéricos, MediatR, CQRS, AutoMapper ni dependencias innecesarias.
 
-## Fuera de T00
+## Fuera de T02
 
-No se implementan reglas, endpoints, entidades, tablas, consultas de reportes, seed ni configuración de base de datos en esta tarea.
+No se implementan seed, entidades EF, repositorios, endpoints ni stored procedures de reportes. El trigger de T02 protege exclusivamente la superposición de contratos; las reglas de aplicación restantes siguen pendientes.

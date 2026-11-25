@@ -22,6 +22,7 @@ IF EXISTS
     FROM sys.tables AS actual
     WHERE actual.schema_id = SCHEMA_ID(N'dbo')
       AND actual.name NOT IN (SELECT TableName FROM @ExpectedTables)
+      AND actual.name <> N'SchemaVersions'
 )
     THROW 51001, N'Schema validation failed: unexpected user tables exist in dbo.', 1;
 

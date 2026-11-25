@@ -6,7 +6,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 |---|---|---|---|---|
 | T00 | Inspección, documentación y esqueleto de solución V2 | Ninguna | Tres proyectos `net10.0`; referencias válidas; docs creados; restore/build/test ejecutados; sin lógica de negocio | Completada |
 | T01 | Esquema SQL y validaciones | T00 | Once tablas; FKs restrictivas; checks, defaults, catálogos, índices y RowVersion; validaciones ejecutadas con rollback | Completada |
-| T02 | Trigger de contratos superpuestos | T01 | Trigger multirregistro y concurrente; contratos futuros e históricos protegidos; pruebas transaccionales | Pendiente |
+| T02 | DbUp y trigger de contratos superpuestos | T01 | DbUp con journal y scripts embebidos; trigger multirregistro y concurrente; validaciones y build exitosos | Completada |
 | T03 | Seed reproducible e idempotente | T01, T02 | Datos mínimos aprobados; segunda ejecución no duplica; invariantes de negocio preservadas | Pendiente |
 | T04 | Contexto EF Database First y mapeos | T01 | Entidades de persistencia generadas desde SQL; contexto y mapeos explícitos; sin migraciones EF | Pendiente |
 | T05 | Repositorios específicos | T04 | Repositorios parametrizados para propiedades, contratos, solicitudes, técnicos y visitas; pruebas de acceso | Pendiente |
@@ -35,3 +35,12 @@ Cada tarea debe conservar decisiones aprobadas, usar consultas parametrizadas, r
 - Resultado real: 11 tablas, catálogos con 2/3/4/5 filas según corresponda, cero filas residuales de negocio, sin cascadas y sin triggers de objetos.
 - `docker compose run --rm dev dotnet build PropertyMaintenance.slnx --no-restore`: código 0, 0 advertencias y 0 errores.
 - `docker compose run --rm dev dotnet test PropertyMaintenance.slnx --no-restore`: código 0; no existen pruebas C# reales todavía.
+
+## Evidencia T02
+
+- DbUp 5.0.40 aplicó los cuatro scripts en una base limpia y registró cuatro filas en `dbo.SchemaVersions`.
+- La segunda ejecución informó que no había migraciones pendientes y no reejecutó scripts.
+- Una base aislada que falló en 004 conservó solo las tres migraciones aplicadas; tras corregir el batch, DbUp aplicó únicamente 004.
+- `ValidateLeaseOverlap.sql` terminó con PASS en los 15 casos requeridos y eliminó sus fixtures.
+- Tres pares de conexiones independientes probaron concurrencia: un solo ganador para el solapamiento, ambas compatibles confirmadas y ambas unidades diferentes confirmadas.
+- `dotnet restore`, `dotnet build` y `dotnet test` terminaron con código 0; el test runner aún no contiene pruebas C# reales.

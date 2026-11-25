@@ -10,14 +10,14 @@ DECLARE @InitialRequests INT = (SELECT COUNT(*) FROM dbo.MaintenanceRequests);
 DECLARE @InitialVisits INT = (SELECT COUNT(*) FROM dbo.Visits);
 DECLARE @BeforeUtc DATETIME2(3) = CONVERT(DATETIME2(3), SYSUTCDATETIME());
 
-BEGIN TRANSACTION;
-
 DECLARE @PropertyId INT;
 DECLARE @UnitId INT;
 DECLARE @TenantId INT;
 DECLARE @TechnicianId INT;
 DECLARE @RequestId INT;
 DECLARE @AssignedRequestId INT;
+
+BEGIN TRANSACTION;
 
 INSERT INTO dbo.Properties (Name, Address, City)
 VALUES (N'Constraint Fixture Property', N'1 Constraint Street', N'Fixture City');
@@ -37,6 +37,10 @@ SET @TechnicianId = CONVERT(INT, SCOPE_IDENTITY());
 
 INSERT INTO dbo.Leases (UnitId, TenantId, StartDate, EndDate, MonthlyRent)
 VALUES (@UnitId, @TenantId, '2025-01-01', '2025-12-31', 1000.00);
+
+-- Commit fixture setup so each rejected statement is isolated in autocommit
+-- mode. Some SQL Server constraint errors can doom an enclosing transaction.
+COMMIT TRANSACTION;
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Leases WHERE UnitId = @UnitId AND TenantId = @TenantId AND MonthlyRent = 1000.00)
     THROW 51100, N'Constraint validation failed: valid lease was rejected.', 1;
@@ -193,7 +197,17 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Visits WHERE RequestId = @AssignedRequestId AND
     THROW 51112, N'Constraint validation failed: zero-cost visit was rejected.', 1;
 SELECT N'PASS: zero-cost visit accepted.' AS ValidationResult;
 
-ROLLBACK TRANSACTION;
+BEGIN TRANSACTION;
+
+DELETE FROM dbo.Visits WHERE RequestId IN (SELECT RequestId FROM dbo.MaintenanceRequests WHERE UnitId = @UnitId);
+DELETE FROM dbo.MaintenanceRequests WHERE UnitId = @UnitId;
+DELETE FROM dbo.Leases WHERE UnitId = @UnitId;
+DELETE FROM dbo.Units WHERE UnitId = @UnitId;
+DELETE FROM dbo.Properties WHERE PropertyId = @PropertyId;
+DELETE FROM dbo.Tenants WHERE TenantId = @TenantId;
+DELETE FROM dbo.Technicians WHERE TechnicianId = @TechnicianId;
+
+COMMIT TRANSACTION;
 
 IF @InitialProperties <> (SELECT COUNT(*) FROM dbo.Properties)
    OR @InitialUnits <> (SELECT COUNT(*) FROM dbo.Units)
