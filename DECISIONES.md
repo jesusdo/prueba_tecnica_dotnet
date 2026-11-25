@@ -1,5 +1,46 @@
 # Decisiones técnicas
 
+## T05: creación de solicitud
+
+Evidencia final: restore y build dentro de dev código 0, cero advertencias y cero errores. `dotnet test PropertyMaintenance.slnx --logger "console;verbosity=minimal"` con conexión aislada: 10 pruebas unitarias aprobadas y 38 de integración aprobadas (15 de T04, 21 HTTP y 2 de concurrencia/rollback), 0 fallidas y 0 omitidas. Se verifican también prioridad numérica definida rechazada, respuesta 500 sin diagnóstico interno y campos controlados por servidor rechazados. `git diff --check` sin errores; README, compose y migraciones previamente aplicadas sin cambios.
+
+Auditoría final: 100 solicitudes de seed y cero registros temporales T05/HTTP residuales. `dotnet list PropertyMaintenance.slnx package --vulnerable --include-transitive` finalizó con código 0 sin vulnerabilidades conocidas en los tres proyectos según nuget.org. La revisión estática independiente no encontró defectos graves; no sustituyó las ejecuciones SQL/HTTP realizadas.
+
+- Se preservaron los cambios pendientes de PKCS de T04. El alcance nuevo prevalece sobre la antigua descripción T05 del backlog; no se implementaron CRUD completos ni T06.
+- Se reutilizan repositorios/modelo/enums de T04 y se agregan sólo Exists de Unit y Tenant. Controller → Service → Repository; DTO de entrada restringido y respuesta explícita. Estado inicial SQL Open; campos de técnico/cierre ausentes del alta. Se rechazan miembros JSON desconocidos para impedir overposting. Enums HTTP como texto, sin números.
+- Longitudes contrastadas con 002: Category NVARCHAR(100); Description NVARCHAR(MAX), restringida a 2000 por contrato HTTP/servicio sin alterar SQL. Espacios exteriores recortados; vacíos rechazados.
+- TransactionScope Serializable nativa, async, 30s y un contexto Scoped compartido. SaveChanges permanece en repositorio; la confirmación la controla el servicio. Una fecha UTC única de TimeProvider, truncada a milisegundos antes de calcular el día, evita que validación y CreatedAt difieran en medianoche. AddAsync ahora persiste esa fecha si viene informada; DateTime default conserva el default SQL y las pruebas T04.
+- Dependencias añadidas: Swashbuckle.AspNetCore.SwaggerUI 7.2.0 únicamente para UI y Microsoft.AspNetCore.Mvc.Testing 10.0.15 sólo en IntegrationTests. Se mantiene OpenAPI nativo y la corrección Pkcs 9.0.21; no se agregó mocking framework.
+- Pruebas SQL reales sobre PropertyMaintenanceDb_T04_Integration (base aislada): el segundo cliente físico intenta terminar un contrato entre validación e inserción; obtiene error SQL exacto 1222, mientras creación confirma. Auditoría confirma contrato intacto y solicitud persistida, luego limpia sólo el fixture. Falla inyectada después de SaveChanges revierte por completo la inserción. No se deshabilitó el trigger.
+- POST real desde Windows a localhost:8080 respondió 201 con RequestId 110, UnitId/TenantId 1, prioridad High, estado Open, técnico/cierre NULL, Category Plumbing, Description T05 manual HTTP probe y CreatedAt 2026-11-25T12:02:16.042Z. SQL confirmó estado 1 y RowVersion de 8 bytes. Se eliminó únicamente esa solicitud temporal identificada. Swagger y OpenAPI devolvieron 200.
+- Uso efectivo de IA: documentación oficial, implementación, pruebas y análisis de bloqueos/resultados. No se afirma validación humana. Limitaciones: no retry automático, no transacciones distribuidas, no prohibición nueva de cambios históricos posteriores al commit. Risk: item 4 (bloqueos concurrentes) e item 5 (dependencias). No commit ni push.
+
+### Ejecución T05
+
+En PowerShell, configurar por entorno la conexión local ya aprovisionada (en Docker Server=db,1433) y ejecutar desde la raíz:
+
+```powershell
+docker compose exec -T -e ASPNETCORE_ENVIRONMENT=Development -e "ConnectionStrings__PropertyMaintenance=$env:ConnectionStrings__PropertyMaintenance" dev dotnet run --project src/PropertyMaintenance.Api --no-launch-profile --urls http://0.0.0.0:8080
+```
+
+Para pruebas, PROPERTY_MAINTENANCE_TEST_CONNECTION debe apuntar a una base local cuyo nombre comience por PropertyMaintenanceDb_T04_; la fixture aplica DbUp/seed y las mutaciones se revierten o limpian por ID. Ejecutar:
+
+```powershell
+docker compose exec -T -e "PROPERTY_MAINTENANCE_TEST_CONNECTION=$env:PROPERTY_MAINTENANCE_TEST_CONNECTION" dev dotnet test PropertyMaintenance.slnx
+```
+
+Swagger: http://localhost:8080/swagger/index.html; documento: http://localhost:8080/openapi/v1.json. IDs comprobados en la base aislada: unidad/inquilino 1/1 y 3/3 con contrato sin fin, 2/2 con fin informado. No suponer estos valores en otras bases: consultar Leases/Units/Tenants. Payload ejemplo: `{"unitId":1,"tenantId":1,"category":"Plumbing","priority":"High","description":"Demo leak"}`.
+
+## T04: corrección de seguridad de PKCS
+
+- Causa verificada con `dotnet nuget why`: `Microsoft.EntityFrameworkCore.SqlServer` 10.0.7 y `DbUp` 5.0.40 (por dbup-sqlserver) convergen en `Microsoft.Data.SqlClient` 6.1.1, que introduce `System.Security.Cryptography.Pkcs` 9.0.4. La referencia al proyecto API propaga la dependencia a ambos proyectos de pruebas.
+- Avisos oficiales consultados: [GHSA-2fmv-rv2c-59x7 / CVE-2026-70162](https://github.com/dotnet/runtime/security/advisories/GHSA-2fmv-rv2c-59x7), severidad moderada (NU1902), y [GHSA-846f-f764-76mx / CVE-2026-84008](https://github.com/dotnet/runtime/security/advisories/GHSA-846f-f764-76mx), severidad alta (NU1903). Ambos describen denegación de servicio. Afectan 9.0.0–9.0.20; primera versión corregida en esa rama: 9.0.21. También publican correcciones 8.0.2 y 10.0.13; no se requiere cambiar de rama para resolver estos avisos.
+- Solución mínima: referencia explícita a `System.Security.Cryptography.Pkcs` 9.0.21 en API, con comentario de seguridad. La versión está publicada en NuGet y es compatible con net10.0. Se conservan EF Core/Design/dotnet-ef 10.0.7, SqlClient 6.1.1 y DbUp 5.0.40. No se actualizaron indiscriminadamente otros paquetes ni se usó NoWarn o se deshabilitó NuGet Audit. El override podrá retirarse cuando la dependencia ascendente resuelva por sí misma una versión segura.
+- Verificación real dentro del contenedor dev: `dotnet restore PropertyMaintenance.slnx --force-evaluate` código 0, sin advertencias; `dotnet build PropertyMaintenance.slnx --no-restore` código 0, cero advertencias y cero errores; `dotnet list PropertyMaintenance.slnx package --vulnerable --include-transitive` código 0, sin paquetes vulnerables conocidos según nuget.org en los tres proyectos; `dotnet nuget why` confirma 9.0.21 en ambas rutas transitivas.
+- `dotnet test PropertyMaintenance.slnx --no-build --no-restore --logger "console;verbosity=normal"`, con `PROPERTY_MAINTENANCE_TEST_CONNECTION` apuntando a `PropertyMaintenanceDb_T04_Integration`: código 0, 15 aprobadas, 0 fallidas, 0 omitidas. UnitTests continúa sin casos. Las pruebas usan SQL Server local aislado y rollback.
+- Las advertencias descritas en la evidencia anterior de T04 son históricas y quedan resueltas por esta corrección. La auditoría expresa el estado conocido por las fuentes consultadas, no una garantía sobre vulnerabilidades futuras.
+- Uso efectivo de IA: trazado de dependencias, consulta de avisos oficiales y versión publicada, parche mínimo y ejecución de verificaciones. Alcance limitado a T04; no se implementó T05 ni se ejecutaron commits o push. Risk: item 5 (dependencia de runtime actualizada), mitigado con auditoría y pruebas reales.
+
 ## T04: acceso a datos Database First
 
 Evidencia: tool restore, restore y build ejecutados dentro de dev con código 0. Ejecución final xUnit sobre `PropertyMaintenanceDb_T04_Integration`: 15 aprobadas, 0 fallidas, 0 omitidas; UnitTests sigue sin casos. Primera ejecución detectó dos errores de test (renovación del mismo inquilino y formato decimal normalizado); se corrigieron los fixtures/aserciones, no el esquema. Concurrencia: dos DbContext independientes sobre una conexión/transacción compartida para rollback, primer escritor genera nueva RowVersion y segundo recibe DbUpdateConcurrencyException exacta. UPDATE de Leases válido y rechazo INSERT solapado con SQL 51021 comprobados con trigger habilitado.

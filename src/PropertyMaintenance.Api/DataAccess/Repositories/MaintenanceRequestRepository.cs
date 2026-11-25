@@ -19,7 +19,8 @@ public sealed class MaintenanceRequestRepository(PropertyMaintenanceDbContext co
         var entity = new MaintenanceRequest
         {
             UnitId = model.UnitId, TenantId = model.TenantId, Category = model.Category,
-            PriorityId = model.PriorityId, Description = model.Description
+            PriorityId = model.PriorityId, Description = model.Description,
+            CreatedAt = model.CreatedAt
         };
         context.MaintenanceRequests.Add(entity);
         await context.SaveChangesAsync(cancellationToken);

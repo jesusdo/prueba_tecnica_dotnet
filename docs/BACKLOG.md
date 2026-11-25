@@ -1,5 +1,9 @@
 # Backlog de implementación
 
+## Alcance vigente T05
+
+La instrucción T05 del responsable sustituye la tarea anterior de repositorios completos: implementar únicamente creación de solicitudes, validación, servicio, POST, ProblemDetails, Swagger UI y pruebas. T06 y posteriores no se ejecutaron. La evidencia de pruebas y ejecución real se registra en DECISIONES.md.
+
 ## Estado al completar T04
 
 T04 implementada: scaffold real de once tablas, EF Core/Design/dotnet-ef local 10.0.7, contexto Scoped, mapeo explícito, repositorios mínimos y pruebas SQL Server. Resultado real: 15 pruebas aprobadas, cero fallidas y cero omitidas en la ejecución final. T05 sigue pendiente; sus operaciones no incluidas en T04 no se implementaron.
@@ -17,7 +21,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T02 | DbUp y trigger de contratos superpuestos | T01 | DbUp con journal y scripts embebidos; trigger multirregistro y concurrente; validaciones y build exitosos | Completada |
 | T03 | Seed reproducible e idempotente | T01, T02 | Datos mínimos aprobados; segunda ejecución no duplica; invariantes de negocio preservadas | Completada |
 | T04 | Contexto EF Database First y mapeos | T01 | Entidades de persistencia generadas desde SQL; contexto y mapeos explícitos; sin migraciones EF | Completada |
-| T05 | Repositorios específicos | T04 | Repositorios parametrizados para propiedades, contratos, solicitudes, técnicos y visitas; pruebas de acceso | Pendiente |
+| T05 | Crear solicitud de mantenimiento | T04 | POST 201 con contrato vigente, 400/404/409/500 ProblemDetails; transacción consistente; pruebas unitarias, HTTP y concurrentes; T04 sin regresiones | Completada |
 | T06 | Servicios y reglas de solicitudes | T05 | RN01–RN12 implementadas y probadas mediante interfaz pública del servicio | Pendiente |
 | T07 | Endpoints REST de escritura | T06 | Crear solicitud, registrar visita y cambiar estado con códigos HTTP y Problem Details consistentes | Pendiente |
 | T08 | Endpoints REST de consulta | T04, T05 | Unidades por propiedad, listado paginado y tenant history con filtros y costos correctos | Pendiente |

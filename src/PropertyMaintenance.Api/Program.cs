@@ -2,12 +2,22 @@ using PropertyMaintenance.Api.DataAccess.Migrations;
 using Microsoft.EntityFrameworkCore;
 using PropertyMaintenance.Api.DataAccess.Context;
 using PropertyMaintenance.Api.DataAccess.Repositories;
+using PropertyMaintenance.Api.Business.Services;
+using PropertyMaintenance.Api.Exceptions;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<MaintenanceRequestService>();
+builder.Services.AddScoped<IUnitRepository, UnitRepository>();
+builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddSingleton<DatabaseMigrator>();
 builder.Services.AddDbContext<PropertyMaintenanceDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("PropertyMaintenance")));
@@ -39,12 +49,13 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Property Maintenance v1"));
 }
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
+app.UseExceptionHandler();
 
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

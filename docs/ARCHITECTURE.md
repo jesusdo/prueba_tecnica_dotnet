@@ -1,5 +1,15 @@
 # Arquitectura aprobada
 
+## Creación de solicitudes T05
+
+Flujo: MaintenanceRequestsController → MaintenanceRequestService → repositorios específicos T04 y consultas Exists de Unit/Tenant → SQL Server. El Controller sólo recibe/valida DTO nativo y devuelve respuesta explícita; los modelos EF no forman contratos HTTP.
+
+El servicio administra una TransactionScope nativa Serializable con flujo async y timeout de 30 segundos. Todos los repositorios resuelven el mismo DbContext Scoped y se enlistan en la transacción local. Las lecturas mantienen bloqueos compartidos/de rango sobre los contratos hasta completar la inserción. AddAsync conserva SaveChanges interno; el servicio confirma únicamente al terminar. Las excepciones desechan la transacción, incluso si SaveChanges ya devolvió. No se introdujo Unit of Work ni un ejecutor transaccional personalizado. Mantener un solo contexto/servidor dentro del scope; añadir otros recursos podría exigir una transacción distribuida, fuera de alcance.
+
+Se captura TimeProvider.GetUtcNow una sola vez dentro de la operación; se trunca a milisegundos para evitar que datetime2(3) redondee hasta el día siguiente. Esa misma hora define la fecha del contrato y CreatedAt persistido (el default SQL permanece disponible para otros consumidores). RequestId, RowVersion y estado inicial siguen obteniéndose de SQL. El trigger de Leases permanece activo; sus applocks protegen superposición, mientras Serializable protege la lectura contra modificaciones concurrentes. Pueden ocurrir bloqueos/deadlocks; timeout de lock o víctima de deadlock devuelven 409 sin retry automático. Una edición posterior al commit no está prohibida por esta operación; no se agrega una nueva regla histórica de inmutabilidad.
+
+IExceptionHandler central produce ProblemDetails seguros y registra errores inesperados con ILogger. ApiController genera ValidationProblemDetails para JSON/validación. Swagger UI usa exclusivamente el documento nativo AddOpenApi/MapOpenApi (sin un segundo generador). En Development: `/swagger/index.html` y `/openapi/v1.json`. HTTP local en puerto 8080; HTTPS/TLS de producción queda en la configuración de despliegue.
+
 ## Acceso a datos T04
 
 PropertyMaintenanceDbContext se registra Scoped con AddDbContext y la misma clave de conexión de DbUp. DbUp termina antes de atender peticiones; EF sólo consulta/persiste, sin modificar el esquema. LeaseRepository usa AnyAsync con límites inclusivos. MaintenanceRequestRepository devuelve modelos de negocio separados mediante mapeo explícito y consultas AsNoTracking; no expone IQueryable ni entidades EF.

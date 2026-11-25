@@ -1,5 +1,13 @@
 # Requisitos aprobados
 
+## Contrato implementado T05
+
+`POST /api/maintenance-requests` recibe `unitId`, `tenantId`, `category`, `priority` y `description`. IDs positivos, categoría obligatoria de hasta 100 caracteres, descripción obligatoria de hasta 2000. Se recortan espacios exteriores al crear. Prioridades textuales Low/Medium/High/Urgent; no se aceptan números, valores desconocidos ni prioridad omitida. Los campos ajenos al DTO (incluidos los controlados por el servidor) se rechazan con 400.
+
+La unidad y el inquilino deben existir y tener contrato válido en la misma unidad a la fecha UTC de creación, con ambos extremos inclusivos y fin nullable. Se crea Open, sin técnico ni fecha de cierre. Respuesta 201: requestId, unitId, tenantId, technicianId, category, priority, status, description, createdAt y closedAt. No incluye RowVersion ni Location inexistente.
+
+Errores ProblemDetails: 400 validación/formato, 404 UNIT_NOT_FOUND o TENANT_NOT_FOUND, 409 ACTIVE_LEASE_REQUIRED o CONCURRENT_CHANGE y 500 UNEXPECTED_ERROR. El detalle interno nunca se devuelve al cliente. T05 no incluye cambios de estado, visitas, consultas ni reportes.
+
 Este documento consolida el enunciado original de `README.md` y las decisiones aprobadas para la prueba. El README se conserva sin modificaciones como fuente original.
 
 ## Enunciado original preservado
