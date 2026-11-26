@@ -1,5 +1,24 @@
 # Requisitos aprobados
 
+## Consultas implementadas T08
+
+| GET | Respuesta 200 | Errores esperados |
+|---|---|---|
+| `/api/properties/{id}/units` | Arreglo de `unitId`, `number`, `floor`, `type` (Apartment/Commercial), `currentTenant` (`tenantId`, `fullName` o null) | 400 ID inválido; 404 PROPERTY_NOT_FOUND |
+| `/api/maintenance-requests` | `page`, `pageSize`, `totalCount`, `totalPages`, `items` | 400 parámetros inválidos |
+| `/api/tenants/{id}/history` | `tenantId`, `fullName`, `contracts`, `maintenanceRequests` | 400 ID inválido; 404 TENANT_NOT_FOUND |
+
+Todos los IDs de ruta deben ser positivos. Colecciones vacías válidas retornan 200. Se reutilizan ProblemDetails y el handler global; errores inesperados retornan 500 sin detalles SQL.
+
+- Unidades: todas las del edificio, orden `Number, UnitId`; inquilino vigente usando una fecha UTC capturada con TimeProvider, `StartDate <= fecha AND (EndDate IS NULL OR EndDate >= fecha)`. Se conservan unidades desocupadas; no se incluyen contratos históricos o futuros como ocupación actual.
+- Listado: `page=1`, `pageSize=20` por defecto; page positivo, pageSize 1–100. Filtros combinables `status`, `priority`, `propertyId`, `from`, `to`. Los enums admiten exclusivamente nombres aprobados, sin distinguir mayúsculas: Open/Assigned/InProgress/Closed/Cancelled y Low/Medium/High/Urgent. Se rechazan números, valores vacíos y nombres desconocidos. propertyId debe ser positivo; si no existe devuelve colección vacía.
+- Fechas de consulta: formato `yyyy-MM-dd`, límites inclusivos por día UTC sobre CreatedAt. from se convierte a medianoche UTC; to, a medianoche UTC del día siguiente exclusiva. Para `9999-12-31`, no se añade límite superior porque DATETIME2 no representa eventos posteriores. Rango invertido/formato inválido devuelve 400. El offset se calcula en long; si excede el conteo devuelve página vacía sin convertirlo a int ni desbordarse.
+- Cada item del listado contiene `requestId`, `propertyId`, `propertyName`, `unitId`, `unitNumber`, `tenantId`, `tenantName`, `technicianId`, `technicianName`, `category`, `priority`, `status`, `description`, `createdAt`, `closedAt`. Técnico nullable, enums como texto, eventos UTC. Orden `CreatedAt DESC, RequestId DESC`; filtros antes del conteo y paginación. totalPages es cero sin resultados; página fuera de rango conserva metadatos y devuelve items vacío.
+- Historial: contratos con `leaseId`, `propertyId`, `propertyName`, `unitId`, `unitNumber`, `startDate`, `endDate`, `monthlyRent`, `isActive`; incluye todos los períodos, orden `StartDate DESC, LeaseId DESC`, vigencia inclusiva calculada con TimeProvider/UTC.
+- Solicitudes del historial se obtienen por TenantId, incluso después de vencer el contrato: `requestId`, `propertyId`, `propertyName`, `unitId`, `unitNumber`, `category`, `status`, `priority`, `createdAt`, `closedAt`, `totalVisitCost`. Orden `CreatedAt DESC, RequestId DESC`. Costo histórico de todas las visitas de cada solicitud, cero sin visitas, sin multiplicarlo por contratos.
+
+Ejemplos sobre el seed: `/api/properties/2/units`, `/api/maintenance-requests?page=1&pageSize=2&status=Open&propertyId=1`, `/api/tenants/1/history`. Swagger UI: `/swagger/index.html`; documento: `/openapi/v1.json`. Las consultas usan offset: cambios concurrentes pueden desplazar filas entre páginas. No se garantiza una instantánea común entre consultas independientes. T09 no está implementada.
+
 ## Contrato implementado T07
 
 `POST /api/maintenance-requests/{id}/visits` recibe technicianId positivo, notes obligatorias de hasta 2000 caracteres y cost numérico obligatorio (cero permitido). El ID de solicitud proviene exclusivamente de la ruta. Se rechazan VisitId, RequestId en el body, VisitedAt y demás miembros desconocidos. Notes se recorta en el servicio; no se permiten espacios solamente.

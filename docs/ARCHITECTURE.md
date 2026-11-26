@@ -1,5 +1,42 @@
 # Arquitectura aprobada
 
+## Lecturas T08
+
+PropertiesController → PropertyService → IPropertyRepository/PropertyRepository; TenantsController → TenantService → ITenantRepository/TenantRepository. MaintenanceRequestsController y MaintenanceRequestService reutilizan IMaintenanceRequestRepository.ListAsync. Todos comparten el DbContext Scoped existente y CancellationToken; no se ejecutan operaciones paralelas sobre ese contexto.
+
+RequestFilter valida nombres de catálogos en query string (el converter JSON no gobierna el model binding de query), fechas y paginación. RequestListQuery separa entrada HTTP; modelos de lectura independientes de EF y DTOs específicos evitan exponer entidades. PagedResult<T> sólo transporta metadatos/items. ReadResponseMapping realiza el mapeo explícito y marca eventos DATETIME2 como UTC según la convención de almacenamiento existente.
+
+Consultas AsNoTracking con Select, sin Include/lazy loading ni bucles con consultas:
+
+| Operación | Consultas SQL para entidad existente | Estrategia |
+|---|---|---|
+| Unidades | 2 | AnyAsync de edificio y proyección de unidades con tenant vigente opcional |
+| Solicitudes | 2 (1 si offset >= conteo) | CountAsync filtrado y proyección paginada con técnico opcional |
+| Historial | 3 | Cabecera de inquilino, contratos y solicitudes con SUM correlacionado |
+
+La inspección de comandos reales en pruebas verifica esos límites. SQL generado mantiene LEFT JOIN para vacantes/técnicos null; aplica filtros directos a CreatedAt y OFFSET/FETCH con desempate RequestId. El historial no une solicitudes con contratos; su SUM por RequestId con COALESCE evita multiplicar costos y retorna cero sin visitas. No hay IQueryable fuera de DataAccess ni filtrado/agregación/paginación en memoria.
+
+Fragmentos observados (parámetros sin valores sensibles):
+
+```sql
+WHERE [l].[StartDate] <= @today
+  AND ([l].[EndDate] IS NULL OR [l].[EndDate] >= @today2)
+-- La proyección de tenant se integra mediante LEFT JOIN a Units.
+
+WHERE [m].[StatusId] = @status AND [u].[PropertyId] = @property
+  AND [m].[CreatedAt] >= @from AND [m].[CreatedAt] < @to
+ORDER BY [m].[CreatedAt] DESC, [m].[RequestId] DESC
+OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY
+
+COALESCE((SELECT COALESCE(SUM([v].[Cost]), 0.0)
+          FROM [Visits] AS [v]
+          WHERE [m].[RequestId] = [v].[RequestId]), 0.0)
+```
+
+No se incorpora una transacción de lectura: conteo/items y colecciones del historial pueden observar commits distintos. El orden es estable para datos estables; offset no evita desplazamientos por altas/cambios concurrentes y puede encarecer páginas profundas. Se documenta esta limitación sin cambiar el contrato solicitado.
+
+Índices revisados: Units(PropertyId,Number) único, Leases(UnitId,StartDate,EndDate), Leases(TenantId), MaintenanceRequests(UnitId,CreatedAt), MaintenanceRequests(TenantId) y Visits(RequestId) sirven a los accesos por edificio, vigencia, historial y costos. No se añaden índices sobre sólo 100 solicitudes. Si mediciones con volumen real evidencian sort/lectura costosa en el listado global, evaluar (CreatedAt DESC,RequestId DESC), y después composición por filtros según selectividad y planes reales. Esto es una recomendación futura, no una migración ni afirmación de índice utilizado por un plan inspeccionado.
+
 ## Registro de visitas T07
 
 VisitService específico conserva el servicio de solicitudes enfocado en creación/transiciones. Controller delega; VisitRepository añade únicamente la visita y hace SaveChangesAsync. VisitModel y VisitMapping separan persistencia y negocio; VisitResponse sólo expone campos aprobados. Sin nuevos paquetes, esquema ni abstracción transaccional genérica.

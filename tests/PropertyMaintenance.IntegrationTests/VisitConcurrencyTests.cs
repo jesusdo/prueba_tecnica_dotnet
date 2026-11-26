@@ -36,6 +36,7 @@ public sealed class VisitConcurrencyTests(SqlFixture fixture)
     }
     private sealed class ObservedRequests(PropertyMaintenanceDbContext db, Gate gate) : IMaintenanceRequestRepository
     {
+        public Task<PagedResult<RequestReadModel>> ListAsync(RequestFilter filter, CancellationToken cancellationToken = default) => inner.ListAsync(filter, cancellationToken);
         private readonly MaintenanceRequestRepository inner = new(db);
         public async Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default)
         {

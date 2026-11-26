@@ -14,6 +14,7 @@ public sealed class VisitServiceTests
         public MaintenanceRequestModel? Request = new() { RequestId = 7, StatusId = 2, TechnicianId = 1, CreatedAt = Now.AddDays(-1).UtcDateTime };
         public bool? Active = true;
         public int Writes;
+        public Task<PagedResult<RequestReadModel>> ListAsync(RequestFilter filter, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public bool Locked;
         public Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default) { Locked = true; return Task.CompletedTask; }
         public Task<MaintenanceRequestModel?> GetByIdAsync(int id, CancellationToken cancellationToken = default)

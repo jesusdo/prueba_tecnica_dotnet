@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using PropertyMaintenance.Api.Business.Services;
 using PropertyMaintenance.Api.DTOs;
+using PropertyMaintenance.Api.Business.Models;
 
 namespace PropertyMaintenance.Api.Controllers;
 
@@ -9,6 +10,19 @@ namespace PropertyMaintenance.Api.Controllers;
 [Route("api/maintenance-requests")]
 public sealed class MaintenanceRequestsController(MaintenanceRequestService service, VisitService visits) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<PagedResult<RequestListItemResponse>>(200)]
+    [ProducesResponseType<ValidationProblemDetails>(400)]
+    [ProducesResponseType<ProblemDetails>(500)]
+    public async Task<ActionResult<PagedResult<RequestListItemResponse>>> List([FromQuery] RequestListQuery query,
+        CancellationToken cancellationToken)
+    {
+        var result = await service.ListAsync(query.Page, query.PageSize, query.Status, query.Priority, query.PropertyId,
+            query.From, query.To, cancellationToken);
+        return Ok(new PagedResult<RequestListItemResponse>(result.Page, result.PageSize, result.TotalCount,
+            result.Items.Select(r => r.ToResponse()).ToArray()));
+    }
+
     [HttpPost("{id}/visits")]
     [ProducesResponseType<VisitResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

@@ -9,6 +9,10 @@ namespace PropertyMaintenance.Api.Business.Services;
 public sealed class MaintenanceRequestService(IUnitRepository units, ITenantRepository tenants,
     ILeaseRepository leases, IMaintenanceRequestRepository requests, TimeProvider time, ITechnicianRepository technicians)
 {
+    public Task<PagedResult<RequestReadModel>> ListAsync(int page, int pageSize, string? status, string? priority,
+        int? propertyId, DateOnly? from, DateOnly? to, CancellationToken cancellationToken = default) =>
+        requests.ListAsync(RequestFilter.Create(page, pageSize, status, priority, propertyId, from, to), cancellationToken);
+
     public async Task<MaintenanceRequestModel> ChangeStatusAsync(int id, RequestStatusId target, int? technicianId,
         CancellationToken cancellationToken = default)
     {

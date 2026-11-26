@@ -23,6 +23,8 @@ public sealed class MaintenanceRequestServiceTests
         public int Writes;
         public DateOnly Date;
         public MaintenanceRequestModel? Added;
+        public Task<TenantHistoryReadModel?> GetHistoryAsync(int id, DateOnly today, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<PagedResult<RequestReadModel>> ListAsync(RequestFilter filter, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool?> GetActiveStatusAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult<bool?>(true);
         public Task<bool> HasVisitsAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(false);
