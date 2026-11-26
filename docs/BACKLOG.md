@@ -1,5 +1,9 @@
 # Backlog de implementación
 
+## T09: integración completada con deuda SQL aceptada
+
+Por instrucción explícita se integran los SP manuales existentes sin modificarlos: dos GET, parámetros seguros, DTOs, DbUp 006/007 mediante recursos embebidos, pruebas SQL/HTTP y documentación. Los criterios originales de exactitud SQL no se declaran cumplidos: ValidateReports identifica las discrepancias y devuelve fallo verificable. Detalles en DECISIONES.md. T10 no iniciada.
+
 ## Estado al completar T08
 
 Tres GET implementados: unidades con ocupación UTC inclusiva, solicitudes con filtros/paginación SQL y tenant history con costos exactos. Se reutilizan capas/fixtures existentes. Sin reportes, stored procedures, dependencias o cambios de migraciones. Pruebas verifican proyecciones y número acotado de consultas (2/2/3), comparaciones SQL independientes, límites extremos de fechas/offset y ausencia de duplicados entre páginas estables. Evidencia final y peticiones HTTP reales en DECISIONES.md. T09 permanece pendiente. Las notas de tareas anteriores conservan su contexto histórico.
@@ -37,7 +41,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T06 | Transiciones de estado de solicitudes | T05 | Cinco de 25 pares permitidos; PATCH 200/400/404/409; técnico activo y visitas; RowVersion original; conflicto SQL real traducido a HTTP 409 | Completada |
 | T07 | Registro de visitas | T06 | POST 201/400/404/409; importes exactos; estados/técnicos coherentes; concurrencia A/B/C real; flujo HTTP completo; suite previa sin regresiones | Completada |
 | T08 | Endpoints REST de consulta | T04, T05, T06, T07 | Tres GET 200/400/404; vigencia UTC inclusiva; filtros antes de count/paginación SQL; orden determinista; costos sin duplicación; pruebas SQL/HTTP, fechas extremas y suite previa aprobadas | Completada |
-| T09 | Stored procedures de reportes | T01, T05 | Ambos reportes parametrizados; agregaciones correctas, edificios/técnicos sin actividad y orden aprobado | Pendiente |
+| T09 | Integración de stored procedures manuales | T01, T05, T08 | Dos GET y DbUp verificados; parámetros/mapeos seguros; SQL preservado por orden expresa; discrepancias originales visibles en validación SQL | Integrada con deuda SQL aceptada |
 | T10 | Integración, Swagger, logging y manejo global | T03, T07, T08, T09 | API documentada; Problem Details; logs útiles; pruebas de integración en entorno dev | Pendiente |
 | T11 | Verificación final y documentación de ejecución | T03, T10 | Restore/build/test completos; README actualizado sin borrar enunciado; supuestos y resultados documentados | Pendiente |
 

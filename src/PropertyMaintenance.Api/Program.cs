@@ -19,6 +19,8 @@ builder.Services.AddScoped<MaintenanceRequestService>();
 builder.Services.AddScoped<VisitService>();
 builder.Services.AddScoped<PropertyService>();
 builder.Services.AddScoped<TenantService>();
+builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<IPropertyRepository, PropertyRepository>();
 builder.Services.AddScoped<IVisitRepository, VisitRepository>();
 builder.Services.AddScoped<IUnitRepository, UnitRepository>();

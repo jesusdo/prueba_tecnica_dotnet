@@ -1,5 +1,24 @@
 # Diseño aprobado de base de datos
 
+## T09: procedimientos manuales preservados
+
+Ubicación canónica: database/scripts/dbo.usp_GetPropertiesSummary.sql y dbo.usp_GetTechniciansWorkload.sql. Autoría manual del desarrollador; revisión e integración/pruebas C# con apoyo de Codex. No se movieron, duplicaron ni editaron durante la integración.
+
+El csproj los embebe como PropertyMaintenance.Api.database.migrations.006_CreatePropertiesSummaryProcedure.sql y 007_CreateTechniciansWorkloadProcedure.sql. DbUp aplica tras 001–005: siete registros reales en dbo.SchemaVersions. Se verificaron base limpia, actualización desde 001–005 y segunda ejecución sin cambios del journal. Una modificación posterior de un SP registrado requerirá nueva migración autorizada: editar el archivo canónico no lo vuelve a ejecutar automáticamente.
+
+Metadatos reales: IDs/conteos INT; nombres NVARCHAR(200); AvgResolutionHours INT nullable; costos DECIMAL(38,2), nullable sólo en técnicos. El contrato de promedio decimal conserva exactamente el entero recibido, sin recuperar precisión perdida. Un importe fuera del rango de System.Decimal provoca error, sin pérdida silenciosa.
+
+ValidateReports.sql utiliza fixtures con IDs generados dentro de una transacción y hace rollback. Requiere base aislada T04; muestra PASS o KNOWN SQL DEBT - SPECIFICATION FAIL y lanza 51910 si falla cualquier requisito. La deuda fue aceptada expresamente por el responsable, no corregida. Desde SSMS: conectar sólo a localhost, seleccionar PropertyMaintenanceDb_T04_Integration, abrir y ejecutar database/validation/ValidateReports.sql; revisar filas y error 51910. No usar la base principal.
+
+Desde PowerShell (sustituir credencial local):
+
+```powershell
+Get-Content database/validation/ValidateReports.sql -Raw -Encoding utf8 |
+  docker compose exec -T db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P <password-local> -C -b -d PropertyMaintenanceDb_T04_Integration
+```
+
+Ejemplos HTTP: /api/reports/properties-summary?from=2026-05-01&to=2026-11-26 y /api/reports/technicians-workload. Swagger: /swagger/index.html; documento: /openapi/v1.json.
+
 ## T04: EF Core Database First
 
 EF Core SqlServer, Design y herramienta local dotnet-ef usan 10.0.7 estable. Design tiene PrivateAssets=all. El scaffold real se generó contra `PropertyMaintenanceDb_T03_Demo`, cuyo journal contenía 001–005. Se incluyeron exclusivamente las once tablas aprobadas; no los journals. El código generado se versiona en Entities y Context; personalizaciones sólo en `PropertyMaintenanceDbContext.Custom.cs`.

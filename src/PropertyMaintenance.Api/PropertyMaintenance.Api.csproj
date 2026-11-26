@@ -21,6 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Canonical developer-authored SQL: embed unchanged, without duplicate files. -->
+    <EmbeddedResource Include="..\..\database\scripts\dbo.usp_GetPropertiesSummary.sql">
+      <LogicalName>PropertyMaintenance.Api.database.migrations.006_CreatePropertiesSummaryProcedure.sql</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\database\scripts\dbo.usp_GetTechniciansWorkload.sql">
+      <LogicalName>PropertyMaintenance.Api.database.migrations.007_CreateTechniciansWorkloadProcedure.sql</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\database\migrations\*.sql">
       <LogicalName>PropertyMaintenance.Api.database.migrations.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>

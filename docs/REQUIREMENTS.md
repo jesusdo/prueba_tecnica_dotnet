@@ -1,5 +1,16 @@
 # Requisitos aprobados
 
+## T09: reportes integrados con deuda SQL aceptada
+
+Por instrucción posterior del responsable se integran sus procedimientos manuales sin modificaciones. La API conserva los indicadores recibidos; no se declara conformidad completa con la especificación SQL original.
+
+| GET | Entrada | Respuesta 200 |
+|---|---|---|
+| `/api/reports/properties-summary` | from/to obligatorios, fechas yyyy-MM-dd, from <= to; to máximo 9999-12-30 | Arreglo: propertyId, propertyName, openRequests, closedRequests, avgResolutionHours nullable, totalVisitCost |
+| `/api/reports/technicians-workload` | Sin parámetros HTTP; servicio envía AsOfUtc mediante TimeProvider | Arreglo: technicianId, technicianName, assignedRequests, inProgressRequests, totalWorkload, visitsLastMonth, totalVisitCost nullable |
+
+Sin registros: 200 con []. Fechas ausentes/inválidas o rango invertido: 400 ProblemDetails; error inesperado: 500. to=9999-12-31 se rechaza para evitar overflow del DATEADD existente. El promedio SQL actual es entero; convertirlo a decimal en el contrato no recupera fracciones. El SP de técnicos ignora AsOfUtc y usa GETDATE(); no se afirma determinismo temporal de su resultado. Limitaciones completas y evidencia en DECISIONES.md.
+
 ## Consultas implementadas T08
 
 | GET | Respuesta 200 | Errores esperados |

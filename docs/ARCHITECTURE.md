@@ -1,5 +1,13 @@
 # Arquitectura aprobada
 
+## T09: integración de procedimientos manuales
+
+ReportsController → ReportService → IReportRepository/ReportRepository → SQL Server. Sin paquetes, entidades persistentes o DbSets nuevos. Modelos de lectura, tipos internos del result set y DTOs HTTP separados mediante mapeo explícito. Database.SqlQuery<T> con SqlParameter DATE/DATE/DATETIME2(3), ToListAsync directamente sobre EXEC, sin composición LINQ de servidor ni agregaciones en C#. Se conserva el orden del SP y CancellationToken.
+
+ReportService valida rango/límites y captura UTC con TimeProvider a milisegundos. No corrige resultados SQL. DECIMAL(38,2) sólo se materializa como System.Decimal si es representable: el proveedor lanza OverflowException para valores fuera de rango y el handler devuelve 500 sin detalles internos. No se redondean, recortan ni convierten silenciosamente en cero. El costo nullable de técnicos se conserva.
+
+Fuentes canónicas en database/scripts, escritas por el desarrollador y no modificadas por Codex. El csproj las embebe bajo nombres lógicos 006/007 del migrador existente; sin copias editables ni ejecutor adicional. DbUp procesa CREATE OR ALTER/GO, con journal y transacción por script existentes. Recursos disponibles en compilación/publicación. La deuda SQL aceptada está documentada y no se oculta mediante cálculo alternativo en C#.
+
 ## Lecturas T08
 
 PropertiesController → PropertyService → IPropertyRepository/PropertyRepository; TenantsController → TenantService → ITenantRepository/TenantRepository. MaintenanceRequestsController y MaintenanceRequestService reutilizan IMaintenanceRequestRepository.ListAsync. Todos comparten el DbContext Scoped existente y CancellationToken; no se ejecutan operaciones paralelas sobre ese contexto.
