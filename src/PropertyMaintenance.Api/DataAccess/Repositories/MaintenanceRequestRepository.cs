@@ -8,6 +8,13 @@ namespace PropertyMaintenance.Api.DataAccess.Repositories;
 
 public sealed class MaintenanceRequestRepository(PropertyMaintenanceDbContext context) : IMaintenanceRequestRepository
 {
+    public async Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default)
+    {
+        // Both status changes and visits lock the parent before dependent rows.
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT RequestId FROM dbo.MaintenanceRequests WITH (UPDLOCK,HOLDLOCK) WHERE RequestId={id}", cancellationToken);
+    }
+
     public Task<bool> HasVisitsAsync(int id, CancellationToken cancellationToken = default) =>
         context.Visits.FromSqlInterpolated($"SELECT * FROM dbo.Visits WITH (HOLDLOCK) WHERE RequestId={id}")
             .AsNoTracking().AnyAsync(cancellationToken);

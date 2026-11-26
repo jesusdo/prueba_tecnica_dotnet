@@ -24,6 +24,8 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger, IPr
         };
         detail.Extensions["code"] = known?.Code ?? (exception is DbUpdateConcurrencyException
             ? "CONCURRENCY_CONFLICT" : conflict ? "CONCURRENT_CHANGE" : "UNEXPECTED_ERROR");
+        if (conflict) detail.Extensions["conflictType"] = exception is DbUpdateConcurrencyException ? "ROW_VERSION"
+            : sql?.Number == 1205 ? "DEADLOCK" : sql?.Number == 1222 ? "LOCK_TIMEOUT" : "TRANSACTION_ABORTED";
         context.Response.StatusCode = status;
         await problems.WriteAsync(new ProblemDetailsContext { HttpContext = context, ProblemDetails = detail });
         return true;

@@ -16,6 +16,7 @@ public sealed class StatusTransitionTests
         public bool? Active = true;
         public bool Visits = true;
         public int Writes;
+        public Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool> ExistsAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<bool> HasActiveLeaseAsync(int unitId, int tenantId, DateOnly date, CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<bool?> GetActiveStatusAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(Active);

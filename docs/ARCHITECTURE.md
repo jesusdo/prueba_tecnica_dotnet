@@ -1,5 +1,17 @@
 # Arquitectura aprobada
 
+## Registro de visitas T07
+
+VisitService específico conserva el servicio de solicitudes enfocado en creación/transiciones. Controller delega; VisitRepository añade únicamente la visita y hace SaveChangesAsync. VisitModel y VisitMapping separan persistencia y negocio; VisitResponse sólo expone campos aprobados. Sin nuevos paquetes, esquema ni abstracción transaccional genérica.
+
+VisitService administra TransactionScope ReadCommitted, async y timeout 30s. Antes de leer/validar estado adquiere LockForUpdateAsync sobre la solicitud (SELECT parametrizado UPDLOCK,HOLDLOCK). Después verifica técnico mediante el repositorio existente HOLDLOCK, captura UTC y añade la visita. Los bloqueos sobreviven hasta commit o rollback. Esto impide cancelar/cerrar o desactivar al técnico entre validación e inserción.
+
+Coordinación T06: tras su lectura original, ChangeStatusAsync toma el mismo bloqueo padre antes de acceder a técnico/visitas. Conserva su RowVersion original; nunca la reemplaza por la actual. Orden común: solicitud padre → técnico si corresponde → visitas. Así se evita la inversión padre/hijos identificada en T06. Si una transición confirma primero, la visita lee el estado terminal y falla; si la visita confirma primero, la transición continúa después y esa visita es válida. Insertar Visits por sí mismo no modifica la RowVersion del padre; el protocolo no depende de que lo haga.
+
+El protocolo aplica a estos servicios, no a escritores SQL que deliberadamente omitan las validaciones. Las transacciones siguen siendo cortas y sin retry automático. El handler diferencia conflictType ROW_VERSION, DEADLOCK y LOCK_TIMEOUT para los conflictos reconocidos; no clasifica todas las excepciones SQL como 409. Las pruebas concurrentes observan sys.dm_exec_requests para confirmar bloqueo real entre SPIDs distintos; requieren permisos diagnósticos sólo en la base/servidor local de pruebas.
+
+Notes es NVARCHAR(MAX) nullable en SQL; la obligatoriedad y límite 2000 son del contrato aprobado, sin cambiar el esquema. Cost se valida en DTO/servicio y se persiste exactamente como decimal(18,2); el converter está limitado al campo Cost de entrada y no altera la serialización de dinero del resto de la API. Se conserva OpenAPI 3.1 y el transformer int32 de rutas para Swagger.
+
 ## Estados y concurrencia T06
 
 Las cinco reglas de transición se centralizan en MaintenanceRequestModel.CanTransition mediante switch; DTO y servicio validan el contrato de asignación. MaintenanceRequestService administra una TransactionScope ReadCommitted (async, 30 segundos) que engloba lectura, validaciones y guardado. La lectura de solicitud es AsNoTracking y no conserva bloqueo compartido después de leer: permite una actualización concurrente y la detecta mediante RowVersion. No se aplicó Serializable a toda la operación.

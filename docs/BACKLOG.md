@@ -1,5 +1,9 @@
 # Backlog de implementación
 
+## Alcance vigente T07
+
+La instrucción T07 sustituye la antigua agrupación de endpoints de escritura: exclusivamente POST de visitas, validación de importes, coordinación concurrente con T06 y pruebas reales. T08 y posteriores permanecen pendientes; no se implementaron GET, paginación ni reportes.
+
 ## Alcance vigente T06
 
 T06 implementa exclusivamente PATCH de estado: cinco transiciones, asignación, cierre con visita, cancelación, ProblemDetails, RowVersion original y pruebas de 25 pares/HTTP/concurrencia independiente. No registra visitas ni implementa T07. El protocolo requerido para T07 está documentado en ARCHITECTURE.md.
@@ -27,7 +31,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T04 | Contexto EF Database First y mapeos | T01 | Entidades de persistencia generadas desde SQL; contexto y mapeos explícitos; sin migraciones EF | Completada |
 | T05 | Crear solicitud de mantenimiento | T04 | POST 201 con contrato vigente, 400/404/409/500 ProblemDetails; transacción consistente; pruebas unitarias, HTTP y concurrentes; T04 sin regresiones | Completada |
 | T06 | Transiciones de estado de solicitudes | T05 | Cinco de 25 pares permitidos; PATCH 200/400/404/409; técnico activo y visitas; RowVersion original; conflicto SQL real traducido a HTTP 409 | Completada |
-| T07 | Endpoints REST de escritura | T06 | Crear solicitud, registrar visita y cambiar estado con códigos HTTP y Problem Details consistentes | Pendiente |
+| T07 | Registro de visitas | T06 | POST 201/400/404/409; importes exactos; estados/técnicos coherentes; concurrencia A/B/C real; flujo HTTP completo; suite previa sin regresiones | Completada |
 | T08 | Endpoints REST de consulta | T04, T05 | Unidades por propiedad, listado paginado y tenant history con filtros y costos correctos | Pendiente |
 | T09 | Stored procedures de reportes | T01, T05 | Ambos reportes parametrizados; agregaciones correctas, edificios/técnicos sin actividad y orden aprobado | Pendiente |
 | T10 | Integración, Swagger, logging y manejo global | T03, T07, T08, T09 | API documentada; Problem Details; logs útiles; pruebas de integración en entorno dev | Pendiente |

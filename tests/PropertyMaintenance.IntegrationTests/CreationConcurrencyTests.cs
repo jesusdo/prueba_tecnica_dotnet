@@ -24,6 +24,7 @@ public sealed class CreationConcurrencyTests(SqlFixture fixture)
     }
     private sealed class FailingRequests(IMaintenanceRequestRepository inner) : IMaintenanceRequestRepository
     {
+        public Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default) => inner.LockForUpdateAsync(id, cancellationToken);
         public Task<bool> HasVisitsAsync(int id, CancellationToken cancellationToken = default) => inner.HasVisitsAsync(id, cancellationToken);
         public Task<MaintenanceRequestModel> UpdateStatusAsync(MaintenanceRequestModel model, CancellationToken cancellationToken = default) => inner.UpdateStatusAsync(model, cancellationToken);
         public Task<MaintenanceRequestModel?> GetByIdAsync(int id, CancellationToken cancellationToken = default) => inner.GetByIdAsync(id, cancellationToken);

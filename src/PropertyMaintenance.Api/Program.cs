@@ -16,6 +16,8 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<MaintenanceRequestService>();
+builder.Services.AddScoped<VisitService>();
+builder.Services.AddScoped<IVisitRepository, VisitRepository>();
 builder.Services.AddScoped<IUnitRepository, UnitRepository>();
 builder.Services.AddScoped<ITenantRepository, TenantRepository>();
 builder.Services.AddScoped<ITechnicianRepository, TechnicianRepository>();

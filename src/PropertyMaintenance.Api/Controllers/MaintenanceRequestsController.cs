@@ -7,8 +7,21 @@ namespace PropertyMaintenance.Api.Controllers;
 
 [ApiController]
 [Route("api/maintenance-requests")]
-public sealed class MaintenanceRequestsController(MaintenanceRequestService service) : ControllerBase
+public sealed class MaintenanceRequestsController(MaintenanceRequestService service, VisitService visits) : ControllerBase
 {
+    [HttpPost("{id}/visits")]
+    [ProducesResponseType<VisitResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<VisitResponse>> CreateVisit([Range(1, int.MaxValue)] int id, CreateVisitDto input,
+        CancellationToken cancellationToken)
+    {
+        var saved = await visits.CreateAsync(id, input.TechnicianId!.Value, input.Notes, input.Cost!.Value, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, VisitResponse.FromModel(saved));
+    }
+
     [HttpPatch("{id}/status")]
     [ProducesResponseType<MaintenanceRequestResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

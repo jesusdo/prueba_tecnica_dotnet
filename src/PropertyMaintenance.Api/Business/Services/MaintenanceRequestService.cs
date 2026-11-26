@@ -21,6 +21,9 @@ public sealed class MaintenanceRequestService(IUnitRepository units, ITenantRepo
             TransactionScopeAsyncFlowOption.Enabled);
         var model = await requests.GetByIdAsync(id, cancellationToken)
             ?? throw new RequestException(404, "REQUEST_NOT_FOUND", "The maintenance request does not exist.");
+        // Keep the original RowVersion, but coordinate parent/child lock order
+        // with visit registration before touching technicians or visits.
+        await requests.LockForUpdateAsync(id, cancellationToken);
         if (!MaintenanceRequestModel.CanTransition((RequestStatusId)model.StatusId, target))
             throw new RequestException(409, "INVALID_STATUS_TRANSITION", "The requested status transition is not allowed.");
         if (target == RequestStatusId.Assigned)

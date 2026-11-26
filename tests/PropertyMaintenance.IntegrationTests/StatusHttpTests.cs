@@ -148,6 +148,7 @@ public sealed class StatusHttpTests(SqlFixture fixture)
     }
     private sealed class GatedRequests(PropertyMaintenanceDbContext db, Gate gate) : IMaintenanceRequestRepository
     {
+        public Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default) => inner.LockForUpdateAsync(id, cancellationToken);
         private readonly MaintenanceRequestRepository inner = new(db);
         public async Task<MaintenanceRequestModel?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {

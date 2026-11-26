@@ -1,5 +1,15 @@
 # Requisitos aprobados
 
+## Contrato implementado T07
+
+`POST /api/maintenance-requests/{id}/visits` recibe technicianId positivo, notes obligatorias de hasta 2000 caracteres y cost numérico obligatorio (cero permitido). El ID de solicitud proviene exclusivamente de la ruta. Se rechazan VisitId, RequestId en el body, VisitedAt y demás miembros desconocidos. Notes se recorta en el servicio; no se permiten espacios solamente.
+
+Cost usa decimal y debe pertenecer a DECIMAL(18,2): rango 0–9999999999999999.99 y escala máxima dos. Se verifica la escala efectiva del número JSON antes de parsearlo para evitar redondeos de entradas de precisión extrema. Notación científica representable como 1e-2 se admite; 1e-3 se rechaza. Una representación con más de dos decimales efectivos, incluso ceros adicionales, se rechaza explícitamente. Omitir/null no equivale a cero.
+
+Sólo Assigned e InProgress permiten visitas. Solicitud y técnico deben existir; técnico activo, sin exigencia de coincidencia con el asignado ni de especialidad. Múltiples visitas permitidas sin cambiar estado o técnico de la solicitud. VisitedAt de TimeProvider UTC, truncado a milisegundos, nunca anterior a CreatedAt. Respuesta 201: visitId, requestId, technicianId, visitedAt, notes y cost, sin Location inexistente.
+
+Errores ProblemDetails: 400 entrada/formato/importes inválidos; 404 REQUEST_NOT_FOUND o TECHNICIAN_NOT_FOUND; 409 INVALID_VISIT_STATUS, TECHNICIAN_INACTIVE o conflicto identificado; 500 inesperados. Una fecha de servidor anterior a CreatedAt se rechaza como conflicto 409 INVALID_INPUT, sin INSERT.
+
 ## Contrato implementado T06
 
 `PATCH /api/maintenance-requests/{id}/status` recibe `status` obligatorio como texto y `technicianId` nullable. ID de solicitud positivo; ID de técnico positivo cuando aparece. Assigned exige técnico; los otros destinos prohíben ese campo. Se rechazan miembros JSON internos/desconocidos. Respuesta 200 reutiliza MaintenanceRequestResponse, sin RowVersion ni ETags.

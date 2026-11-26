@@ -23,6 +23,7 @@ public sealed class MaintenanceRequestServiceTests
         public int Writes;
         public DateOnly Date;
         public MaintenanceRequestModel? Added;
+        public Task LockForUpdateAsync(int id, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<bool?> GetActiveStatusAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult<bool?>(true);
         public Task<bool> HasVisitsAsync(int id, CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task<MaintenanceRequestModel> UpdateStatusAsync(MaintenanceRequestModel model, CancellationToken cancellationToken = default) => throw new NotSupportedException();
