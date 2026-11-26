@@ -1,5 +1,7 @@
 # Auditoría técnica T10.1
 
+**Estado vigente T11:** entrega CONDITIONAL; ver sección16. Las referencias al README original en las secciones históricas corresponden ahora a docs/ORIGINAL_CHALLENGE.md, archivado íntegro. No se reescriben sus resultados históricos.
+
 Fecha: 2026-11-26. Base del repositorio: `cfa7623`, rama `dev`, Git limpio al comenzar. Auditoría local con apoyo de Codex; no se realizaron correcciones.
 
 ## 1. Resumen ejecutivo
@@ -400,3 +402,119 @@ TechniciansWorkload: FF5271FB224E4A6706CED7DF032AF6B3113FF100B082425A479A96B3376
 ```
 
 No se editaron recursos embebidos ni archivos manuales. F01–F05 requieren corrección/decisión personal del desarrollador; F09 conserva su discrepancia de oracle explícita. M02/M37 requieren evidencia externa autorizada o validación humana. README/Docker/entrega definitiva se difieren, sin avance automático. No se hicieron commit ni push.
+
+## 16. T11: preparación final y validación de entrega
+
+Base92d5435, rama dev, Git limpio al comenzar. Cambios exclusivamente de documentación, configuración local, scripts de ejecución y CI: no se modificaron endpoints, reglas, código de src/tests, dependencias, ocho migraciones, SP, recursos embebidos ni ValidateReports. El enunciado del README anterior se copió íntegro a ORIGINAL_CHALLENGE.md. El README nuevo describe instalación, arquitectura Mermaid, ocho contratos, flujo, pruebas, SQL, publish y limitaciones.
+
+### Evidencia desde copia local limpia
+
+Se creó una **copia local candidata**, no un clon remoto, con148 archivos registrados y no registrados que constituyen el cambio. Se excluyeron bin/obj, .git, configuraciones personales y .env local; se generó una configuración efímera propia. Volúmenes SQL y NuGet nuevos bajo proyecto explícito propertymaintenance-t11-clean-20261126, puertos15433/18080/18081. Las modificaciones finales sólo documentales y de nombre de CI se sincronizaron después sin reutilizar artefactos del desarrollador.
+
+La imagen Dockerfile se construyó desde fuente y publicó Release; se ejecutó el contenedor runtime como app, con ASP.NET10.0.15 y sin SDK. El servicio dev conserva SDK10.0.404 y el flujo existente. Las instrucciones del README se ejecutaron con el -p explícito documentado para revisión paralela:
+
+| Paso | Resultado real |
+|---|---|
+| Config Compose/healthcheck y dos bases nuevas | Código0; volumen nuevo y SQL2022 sano; aprovisionamiento no aplica esquema |
+| Build imagen API / arranque | Código0; DbUp aplicó001–008 y seed, antes de escuchar |
+| dotnet tool restore / restore | Código0, herramienta local10.0.7 y dependencias descargadas a cache nueva |
+| Build Release | Código0, cero warnings/errores |
+| Test Release | Código0: **99 unitarias/167 integración,266 PASS,0 FAIL,0 SKIP** |
+| NuGet directo/transitivo | Código0, tres proyectos sin vulnerabilidades reportadas; JSON de auditoría y condición equivalente a CI verificados |
+| Publish Release | Código0, artefacto generado en /tmp/propertymaintenance-publish |
+| Swagger/OpenAPI | HTTP200 en API publicada18081 y modo dev18080; OpenAPI3.1.1 con8 operaciones |
+| SQL wrapper | Esquema, constraints,15 leases y17 seed checks aprobados; después reportes6 PASS/9 fallos, **51910/código1 propagado** |
+| Reinicio API | Cero scripts pendientes; demo ya aplicada;100 solicitudes110 visitas,8 journal esquema/1 seed |
+
+Los ocho endpoints se ejercitaron mediante curl contra la imagen publicada. IDs obtenidos del seed por consulta/helper y respuesta, no supuestos: unidad/inquilino/edificio/técnico1 en esa instalación nueva. Request101: Open201, Assigned200, InProgress200, visita111 por12.34 con201, Closed200, historial/listado/unidades200 y reportes200; visita posterior409 INVALID_VISIT_STATUS. SQL confirmó exactamente una visita por12.34 y se limpiaron sólo esos dos registros de prueba. El promedio/costo de reportes se mantiene como salida técnica, no como indicador validado funcionalmente.
+
+Después de limpiar el flujo, hash integral ordenado de las siete tablas antes/después de reiniciar: **9E39463B84ECDACA0B9C4CF3A5FD8D0EE5827FD721A2E6EE655E4A59CC0DBB1E**, idéntico. Esto comprueba identidades, fechas, RowVersion y datos sin duplicación. Pruebas y validaciones usaron la base T04_Integration aislada; no una base previamente inicializada.
+
+### Incidente de aislamiento y recuperación
+
+El primer intento de validación generó por error un .env de una sola línea debido a precedencia de expresiones PowerShell. No se aplicó el nombre de proyecto y Compose reutilizó el predeterminado: recreó temporalmente los contenedores db/dev originales y SQL salió1. Este intento fallido **no** se cuenta como prueba limpia satisfactoria.
+
+Se suspendió la ejecución, se inspeccionaron sólo rutas/etiquetas/volúmenes y se restauró el Compose exacto de HEAD con el mismo volumen. db/dev volvieron sanos y28 bases de usuario estaban ONLINE. No se eliminaron volúmenes ni se ejecutó DML/DDL de negocio sobre la base principal. No había hash previo de esa base y no se afirma igualdad byte a byte ni ausencia de interrupción; el reinicio es un efecto real comunicado al responsable.
+
+La repetición satisfactoria usó ocho líneas verificadas de entorno, -p explícito, puertos distintos y volúmenes nuevos. README explica esa protección. La recuperación/validación se diferencia de un cambio funcional: no se alteraron migraciones/SP para resolverla. No se reescribió Git ni se borraron bases para ocultar resultados.
+
+### Configuración Docker/CI y límites de evidencia
+
+Compose conserva db/dev; api es un perfil opcional. Publicación loopback: SQL1433, dev8080, api8081 por defecto. Healthcheck SQL precede dependientes, datos en volumen, scripts/database montados sólo lectura. Aprovisionar sólo bases inexistentes y separadamente de DbUp evita crear bases en migraciones. La configuración usa variables de entorno y mantiene Enlist=true; el guard deT10.2 no cambia.
+
+CI .github/workflows/ci.yml preparado para Ubuntu/Docker, proyecto por run/attempt, contraseña efímera enmascarada y SQL real. Incluye tool restore/restore/Release build, suite completa sin omitir integración, auditoría JSON con rechazo de paquetes vulnerables y publish. Cleanup de volúmenes sólo en el runner efímero de ese proyecto. **No se ejecutó en GitHub**: estado remoto NOT VERIFIED, no CI verde inventada. No se instaló un servicio de revisión ni se envió código a terceros; sólo fuentes de paquetes/imágenes públicas necesarias para la ejecución autorizada.
+
+Inspección local no identificó secretos reales registrados; valores públicos del template permanecen en el enunciado/historia y fallback local por compatibilidad. .env está ignorado/excluido del contexto Docker. Los puertos loopback mitiganF12; configuración de producción/credenciales/permisos sigue fuera de certificación. M02 Azure conserva revisión estática, no despliegue real; M37 no tuvo comprobación de acceso anónimo. No se usaron credenciales/sesiones remotas ambientales.
+
+### Matriz vigente de los37 requisitos obligatorios
+
+Esta tabla actualiza estados sin sustituir la descripción/evidencia histórica de sección4. **33 PASS,0 PARTIAL,2 FAIL,2 NOT VERIFIED**. La mejora es M33, instrucciones completas. Ocho operaciones implementadas/documentadas no equivalen a ocho comportamientos semánticamente aprobados.
+
+| ID | Estado vigente | Evidencia/limitación |
+|---|---|---|
+| M01 | PASS | Build/runtime .NET10 y SQL2022 de copia limpia |
+| M02 | NOT VERIFIED | Sin instancia Azure autorizada ni ejecución cloud |
+| M03 | PASS | Esquema y modelo Property validados |
+| M04 | PASS | Unidades/tipos y consulta real |
+| M05 | PASS | Tenant y unicidad email |
+| M06 | PASS | Lease y tipos/fechas |
+| M07 | PASS | Técnicos/catálogos |
+| M08 | PASS | Solicitud persistida por HTTP |
+| M09 | PASS | Visita persistida por HTTP |
+| M10 | PASS | Trigger008 y regresiones SQL/xUnit |
+| M11 | PASS | Contrato vigente y guard transaccional |
+| M12 | PASS | Transiciones aprobadas/rechazos |
+| M13 | PASS | Asignación a técnico activo |
+| M14 | PASS | Cierre con visita y UTC |
+| M15 | PASS | Importes válidos y negativos rechazados |
+| M16 | PASS | Esquema/PK/FK/constraints validados |
+| M17 | PASS | Ocho scripts desde base nueva y journal |
+| M18 | PASS | Tres edificios, seed idempotente |
+| M19 | PASS | Treinta unidades |
+| M20 | PASS | Veinte inquilinos/contratos |
+| M21 | PASS | Cinco técnicos, uno inactivo |
+| M22 | PASS | Cien solicitudes/estados/visitas en referencia inicial |
+| M23 | PASS | POST solicitud201 real y pruebas |
+| M24 | PASS | POST visita201/409 real y pruebas |
+| M25 | PASS | PATCH200 y pruebas |
+| M26 | PASS | GET unidades200 y pruebas |
+| M27 | PASS | GET filtros/paginación200 y pruebas |
+| M28 | PASS | GET historial200, costo12.34 verificado |
+| M29 | FAIL | Resumen: indicadores manuales aún incorrectos |
+| M30 | FAIL | Técnicos: indicadores/universo/orden aún incorrectos |
+| M31 | PASS | SP de autoría manual declarada preservados |
+| M32 | PASS | ProblemDetails y códigos de error probados |
+| M33 | PASS | README completo y comandos ejercitados desde copia limpia |
+| M34 | PASS | Decisiones consolidadas y historia conservada |
+| M35 | PASS | Uso de IA transparente, sin validación humana inventada |
+| M36 | PASS | Quince commits locales previos; no commits del agente |
+| M37 | NOT VERIFIED | Falta acceso público anónimo/entrega real |
+
+Extras opcionales: O01/O02/O03/O04/O05 PASS en el alcance descrito; O06 PARTIAL, workflow preparado y pasos locales verificados, ejecución GitHub pendiente. Ningún porcentaje de cobertura nuevo se reclama enT11;77.12% sigue siendo la medición histórica deT10.1.
+
+### Hallazgos al cerrar T11
+
+| ID | Estado | Evidencia o pendiente |
+|---|---|---|
+| F01 | OPEN | SP manuales preservados, poblaciones incorrectas |
+| F02 | OPEN | Promedio entero preservado |
+| F03 | OPEN | Universo/atribución/costos de técnicos sin corregir |
+| F04 | OPEN | Fan-out/orden manual sin corregir |
+| F05 | OPEN | Referencia temporal y validación SQL pendientes |
+| F06 | RESOLVED | README de ejecución completo probado, enunciado archivado íntegro |
+| F07 | RESOLVED |008 y regresiones vigentes |
+| F08 | RESOLVED | Validación de ambos journals vigente |
+| F09 | OPEN | Oracle de reportes no modificado para ocultar discrepancias |
+| F10 | RESOLVED | Guard Enlist vigente |
+| F11 | OPEN | Retención de bases y setup parcial permanecen documentados |
+| F12 | DEFERRED | Mitigación local loopback/variables/CI efímera; producción no certificada |
+| F13 | OPEN | Logging genérico de operación no cambiado por T11 |
+| F14 | RESOLVED | Estado vigente al inicio de docs y snapshots históricos diferenciados |
+
+Totales **5 RESOLVED,8 OPEN,1 DEFERRED**. No se reclasifica la deuda SQL como resuelta ni se marca T10 completo funcionalmente.
+
+### Preservación y evaluación final
+
+README original SHA256 archivado: A93C0A5F055061D6BE1F3B3D1705A67BA9D625B012B8C18991558B902E47634A. Blob Git normalizado original/archivo607f9a77a234003c4ff414e45facdfbc7a44fe10, idéntico. Los dos SP mantienen los hashes iniciales E52171268E2BAAD14E4AF4380830499E54861686AB8512D8FBA833F0770AE09F y FF5271FB224E4A6706CED7DF032AF6B3113FF100B082425A479A96B33765D9F5; sus recursos006/007 y ValidateReports no cambiaron.
+
+**Evaluación: CONDITIONAL.** El evaluador dispone de ejecución local reproducible, ocho endpoints, pruebas SQL reales y documentación; dos reportes incumplen requisitos obligatorios y faltan pruebas Azure/publicación/CI remota. No corresponde READY ni afirmar una aprobación de GitHub. El desarrollador debe decidir/corregir personalmente SQL, revisar diff, efectuar su commit/push/merge autorizados y comprobar Actions y acceso anónimo. El agente no ejecutó commit, push, merge, cambio de visibilidad, tags, releases o publicación remota. No se contrataron recursos Azure ni se inicia otra tarea.

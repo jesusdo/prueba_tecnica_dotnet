@@ -1,10 +1,14 @@
 # Backlog de implementación
 
-## Estado actual: alcance autorizado de T10.2 completado
+## Estado vigente: T11 ejecutada, entrega CONDITIONAL
+
+README de ejecución validado desde copia local limpia; enunciado archivado íntegro; Dockerfile/API opcional, scripts y CI preparados sin cambiar negocio. Revalidación266 aprobadas (99/167), build/publish Release sin errores, auditoría sin vulnerabilidades reportadas, ocho migraciones/seed e idempotencia, ocho endpoints HTTP. ValidateReports sigue6 PASS/9 fallos/51910. F06/F14 RESOLVED por documentación; F12 mitigado localmente y DEFERRED para exposición productiva. Totales5 RESOLVED/8 OPEN/1 DEFERRED. M33 PASS; matriz33 PASS/2 FAIL/2 NOT VERIFIED. M02 Azure, M37 acceso público y ejecución remota de CI pendientes. T10 no se cierra funcionalmente por deuda SQL; no avances automáticos. Detalles e incidente de aislamiento registrados en auditoría sección16.
+
+## Histórico: alcance autorizado de T10.2 completado
 
 F07, F08 y F10 RESOLVED: migración008 del trigger, validador de journals legítimos y rechazo temprano de Enlist=false. Regresiones Release: 99 unitarias +167 de integración =266 aprobadas, cero fallidas/omitidas; las231 anteriores vigentes. Sin modificaciones de SP manuales, recursos o migraciones previas. ValidateReports conserva6 PASS/9 incumplimientos y51910. M02 Azure y M37 repositorio público continúan NOT VERIFIED, pendientes de evidencia humana/T11. Propuestas individualizadas para los demás hallazgos en TECHNICAL_AUDIT.md sección15. T10 sigue en curso por deuda abierta; T11 no iniciada.
 
-## Estado actual: T10.1 auditada, sin correcciones
+## Histórico: T10.1 auditada, sin correcciones
 
 Auditoría local sobre cfa7623 completada y documentada en TECHNICAL_AUDIT.md. Revalidación: 87 unitarias + 144 de integración aprobadas; build sin advertencias/errores, auditoría NuGet sin vulnerabilidades reportadas y publish Release exitoso. ValidateReports conserva seis PASS/nueve fallos (51910). Se reprodujeron fallos adicionales del validador de esquema tras seed, UPDATE válido por lote y rollback con Enlist=false. Catorce hallazgos consolidados: 0 P0, 5 P1, 7 P2, 2 P3. Ninguna corrección aplicada. T10 sigue pendiente de decisiones/correcciones; T10.2 y T11 no iniciadas. La revisión adicional Gentle AI de T09 fue rechazada por el responsable.
 
@@ -53,7 +57,7 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T10 | Integración, Swagger, logging y manejo global | T03, T07, T08, T09 | API documentada; Problem Details; logs útiles; pruebas de integración en entorno dev | En curso: T10.2 autorizada completada; deuda funcional pendiente |
 | T10.1 | Auditoría técnica integral, sin correcciones | T00–T09 | Trazabilidad original, ejecuciones reales, hallazgos priorizados, evidencia SQL/concurrencia/seguridad y sólo informe/backlog modificados | Ejecutada; ver TECHNICAL_AUDIT.md |
 | T10.2 | Remediación autorizada F07/F08/F10 y regresiones | T10.1 y alcance aprobado | Nueva008, journals válidos/negativos, guard Enlist, regresiones SQL/concurrencia, preservación de SP y propuestas restantes | Alcance autorizado completado; ver sección15 de TECHNICAL_AUDIT.md |
-| T11 | Verificación final y documentación de ejecución | T03, T10 | Restore/build/test completos; README actualizado sin borrar enunciado; supuestos y resultados documentados | Pendiente |
+| T11 | Preparación final y documentación de entrega | T03, T10.2 | Copia limpia y comandos verificados; enunciado/SP preservados; CI preparada; resultados y deuda visibles | Ejecutada: CONDITIONAL; Azure/público/CI remota pendientes |
 
 ## Definición de terminado transversal
 

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: propertymaintenance-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      DB_NAME: PropertyMaintenanceDb_Demo
+      TEST_DATABASE_NAME: PropertyMaintenanceDb_T04_Integration
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate ephemeral local database password
+        shell: bash
+        run: |
+          DB_PASSWORD="Aa1_$(openssl rand -hex 24)"
+          echo "::add-mask::$DB_PASSWORD"
+          echo "DB_PASSWORD=$DB_PASSWORD" >> "$GITHUB_ENV"
+      - name: Validate Compose and start local SQL and SDK
+        run: |
+          docker compose config --quiet
+          docker compose up -d --wait --wait-timeout 180 db dev
+      - name: Provision databases without applying schema
+        run: |
+          docker compose exec -T db bash /opt/propertymaintenance/scripts/provision-database.sh
+          docker compose exec -T db bash /opt/propertymaintenance/scripts/provision-database.sh "$TEST_DATABASE_NAME"
+      - name: Restore tools and packages
+        run: |
+          docker compose exec -T dev dotnet tool restore
+          docker compose exec -T dev dotnet restore PropertyMaintenance.slnx
+      - name: Release build
+        run: docker compose exec -T dev dotnet build PropertyMaintenance.slnx -c Release --no-restore
+      - name: Unit and SQL integration tests
+        run: docker compose exec -T dev dotnet test PropertyMaintenance.slnx -c Release --no-build --no-restore
+      - name: Audit direct and transitive dependencies
+        shell: bash
+        run: |
+          docker compose exec -T dev dotnet list PropertyMaintenance.slnx package --vulnerable --include-transitive --format json --no-restore > "$RUNNER_TEMP/dependency-audit.json"
+          jq -e '[.projects[].frameworks[]? | (.topLevelPackages[]?, .transitivePackages[]?) | select((.vulnerabilities // []) | length > 0)] | length == 0' "$RUNNER_TEMP/dependency-audit.json"
+      - name: Publish API
+        run: docker compose exec -T dev dotnet publish src/PropertyMaintenance.Api/PropertyMaintenance.Api.csproj -c Release --no-restore -o /tmp/propertymaintenance-publish /p:UseAppHost=false
+      - name: Remove ephemeral containers and volumes
+        if: always()
+        run: docker compose down --volumes --remove-orphans

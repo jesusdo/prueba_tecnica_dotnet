@@ -1,5 +1,11 @@
 # Requisitos aprobados
 
+## Estado vigente T11
+
+Ocho endpoints implementados, con los contratos descritos en README.md. El enunciado íntegro está en ORIGINAL_CHALLENGE.md; las referencias al README original de los hitos históricos corresponden ahora a ese archivo. Validación local desde copia limpia: 266 pruebas aprobadas (99 unitarias/167 integración), ocho migraciones y seed verificados. Esto no aprueba todos los requisitos funcionales: M29/M30 siguen FAIL por indicadores de reportes; M02 Azure y M37 entrega pública siguen NOT VERIFIED. M33 instrucciones de ejecución pasa a PASS. Clasificación final CONDITIONAL; matriz actual completa en TECHNICAL_AUDIT.md sección16.
+
+Las secciones T00–T10 siguientes son hitos históricos y deben interpretarse en su fecha/fase, no como ausencia actual de endpoints o migraciones. Usar días ISO yyyy-MM-dd en ejemplos; el binding real utiliza DateOnly, no un binder personalizado que acepte exclusivamente esa grafía. La demo envejece respecto de su referencia inicial; no se actualizan fechas al reiniciar.
+
 ## T09: reportes integrados con deuda SQL aceptada
 
 Por instrucción posterior del responsable se integran sus procedimientos manuales sin modificaciones. La API conserva los indicadores recibidos; no se declara conformidad completa con la especificación SQL original.

@@ -1,5 +1,15 @@
 # Diseño aprobado de base de datos
 
+## Estado vigente T11
+
+README.md contiene el recorrido de instalación vigente; ORIGINAL_CHALLENGE.md preserva el enunciado. Hay ocho migraciones de esquema y un script de demo con journal separado. Los conteos de cinco/siete migraciones en hitos anteriores son históricos, no instrucciones actuales.
+
+Compose monta scripts y database como sólo lectura en db. `bash /opt/propertymaintenance/scripts/provision-database.sh [database]` valida nombres ASCII de1–128 caracteres y crea la base sólo si falta; no elimina ni actualiza objetos existentes. DB_NAME es demo y TEST_DATABASE_NAME una base T04 aislada. Las credenciales se toman del entorno local; no copiar valores personales/productivos al repositorio. No se adopta automáticamente una base anterior con objetos y sin historial DbUp.
+
+`scripts/validate-sql.sh` ejecuta con sqlcmd -b las cinco validaciones reales, dejando ValidateReports al final y propagando su error51910/código1. No es una validación verde: permanecen6 PASS/9 incumplimientos. El helper demo-identifiers.sh obtiene contratos vigentes y técnicos activos sin asumir IDs. Las fuentes y recursos de los dos SP manuales se preservaron; ver hashes en auditoría.
+
+Azure SQL: aprovisionar antes la base con una identidad autorizada, configurar la conexión/encriptación adecuada y permisos controlados para DbUp. No usar scripts de aprovisionamiento local contra destinos remotos sin autorización; no se crearon recursos cloud. Inspección estática no sustituye ejecución Azure y M02 permanece NOT VERIFIED. La referencia UTC persistida del seed no cambia al reiniciar; fechas antiguas pueden dejar de representar ocupación actual con el tiempo.
+
 ## T10.2: remediación autorizada
 
 La migración nueva `008_FixLeaseOverlapTrigger.sql` altera el trigger existente sin editar 004 ni los SP manuales. La comparación contra filas persistidas excluye todos los LeaseId de `deleted`: son versiones anteriores reemplazadas por la sentencia, no contratos ajenos al lote. Las filas de `inserted` se comprueban entre sí y contra las persistidas no afectadas. El estado final debe seguir sin superposiciones; no se omite la detección entre miembros del mismo lote.

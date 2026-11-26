@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+.agents
+.codex
+.aws
+**/bin
+**/obj
+**/TestResults
+**/*.user
+**/*.log
+tests
+docs
+odd
+.github

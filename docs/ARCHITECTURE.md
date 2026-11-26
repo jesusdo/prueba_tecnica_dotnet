@@ -1,5 +1,13 @@
 # Arquitectura aprobada
 
+## Estado vigente T11: ejecución y entrega
+
+La arquitectura permanece Controller → Service → Repository → SQL Server, con un proyecto API y dos de pruebas. No hubo cambios funcionales en src/tests durante T11. El Dockerfile publica la API en Release con SDK10 y ejecuta el artefacto como usuario app en ASP.NET runtime10 sin SDK. Los scripts SQL embebidos siguen disponibles en esa imagen; ocho migraciones, incluidos SP006/007 y trigger008.
+
+Compose conserva db/dev y agrega api en perfil opcional. dev conserva código compartido, SDK y puerto8080; api usa contenedor8080/host8081 por defecto. Puertos publicados en127.0.0.1; nombres/puertos/contraseña/seed configurables por entorno. SQL usa volumen persistente y healthcheck. El aprovisionamiento sigue separado: scripts/provision-database.sh crea sólo la base, DbUp aplica esquema/journal y demo opcional. No se añadió ejecutor propio de migraciones ni endpoint de salud/negocio.
+
+GitHub Actions preparado utiliza Docker y SQL real, con credencial efímera y suite completa; ejecución remota pendiente. Los modos publicado y dev se probaron desde copia local limpia. Azure y visibilidad pública no se infieren de esa prueba. Las secciones de tareas anteriores mantienen decisiones y evidencia históricas; prevalece este estado para ejecución actual.
+
 ## T10.2: configuración compatible con transacciones ambientales
 
 La arquitectura y los scopes no cambian: creación usa TransactionScope Serializable; transiciones y visitas usan ReadCommitted, con sus bloqueos existentes. Las tres operaciones necesitan que el DbContext Scoped y su SqlConnection participen en el scope. Con Enlist=false, SaveChanges puede confirmar fuera del scope y sus bloqueos no quedan protegidos durante toda la operación.

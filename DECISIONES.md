@@ -1,5 +1,35 @@
 # Decisiones técnicas
 
+## T11: entrega reproducible y estado final
+
+Estado de entrega **CONDITIONAL**: la preparación técnica local fue verificada, pero los indicadores manuales siguen con incumplimientos y no se afirma ejecución Azure, CI remota ni acceso público. Las secciones T00–T10 posteriores conservan el estado histórico; no sustituyen estas instrucciones vigentes. El enunciado se archivó sin cambios en docs/ORIGINAL_CHALLENGE.md, con el mismo SHA256 del README inicial y el mismo blob Git normalizado.
+
+| Decisión realmente tomada | Justificación aprobada / implementación |
+|---|---|
+| Capas en lugar de Clean Architecture | Proporcionalidad al ejercicio: una API con responsabilidades claras y dos proyectos de tests; se conserva la corrección V2 |
+| SQL Server como fuente del esquema, EF Database First | Modelo físico versionado; scaffold de once tablas, sin migraciones EF |
+| DbUp y catálogos en tablas | Ocho recursos ordenados, journal real y catálogos fijos; demo con journal transaccional independiente |
+| Trigger e inclusividad contractual | RN de no superponer períodos; NULL indefinido;008 compara estado final del lote y mantiene bloqueos ordenados |
+| UTC y RowVersion | Eventos a milisegundos y concurrencia optimista sin exponer token por HTTP |
+| TransactionScope | Validación/guardado coherentes con DbContext Scoped; guard temprano rechaza Enlist=false |
+| Repositorios específicos y modelos separados | LINQ/SQL dentro de DataAccess; mapeo explícito; sin abstracción genérica o AutoMapper |
+| Stored procedures para reportes | Autoría manual del desarrollador; integración C# no corrige sus indicadores ni altera archivos |
+| Offset y consultas independientes | Contrato sencillo con orden determinista; límites de consistencia/costo documentados |
+| xUnit y SQL real | Pruebas de comportamiento, persistencia y sesiones concurrentes, sin EF InMemory |
+| Dockerfile y API opcional | Evaluador necesita sólo Docker; runtime sin SDK. dev existente se conserva en otro puerto |
+| Aprovisionamiento separado | Script crea sólo bases inexistentes; DbUp sigue siendo único mecanismo de esquema/seed |
+| CI proporcional | Docker/SQL real, credencial efímera, build/tests/audit/publish; ningún éxito remoto inventado |
+
+Uso efectivo de IA: esta conversación se utilizó para análisis y contraste de especificaciones; Codex generó código de integración, pruebas, scripts/infraestructura y documentación y ejecutó validaciones locales. Las decisiones de alcance y la autoría personal de los SP fueron declaradas por el responsable y respetadas. Sólo se atribuyen al desarrollador las correcciones manuales y commits respaldados por la conversación/historial; no se inventa una revisión humana de los resultados de T11 ni tiempos/motivaciones personales.
+
+Evidencia T11: copia local candidata de148 archivos registrados/nuevos, sin bin/obj/.env personal/Git ni bases previas, con volúmenes NuGet/SQL nuevos. Proyecto explícito propertymaintenance-t11-clean-20261126 y puertos15433/18080/18081. Tool restore/restore/build Release/test266 (99/167)/NuGet Audit/publish código0; cero warnings/errores de build. Imagen publicada no-root sin SDK, Swagger200 y OpenAPI3.1.1 con8 operaciones. No fue un clon remoto.
+
+Flujo curl real: solicitud101 creada/asignada/InProgress/visita111 por12.34/cerrada; historial y listado200, ambos reportes200 técnico y visita terminal409. SQL verificó una visita por12.34 y se limpiaron sólo esos registros en la base aislada. Reinicio:8 schema entries/1 seed entry,100 solicitudes110 visitas; hash integral antes/después9E39463B84ECDACA0B9C4CF3A5FD8D0EE5827FD721A2E6EE655E4A59CC0DBB1E idéntico. Validador SQL estricto: cuatro validadores aprobados y ValidateReports1/51910 con6 PASS/9 fallos. No se declara exactitud de reportes por obtener200.
+
+Incidente de validación, sin ocultarlo: la primera generación automática de .env produjo una sola línea por precedencia de expresiones PowerShell. Faltó el override de proyecto y Compose recreó temporalmente db/dev originales; SQL no inició. Se restauraron con Compose de HEAD y los mismos volúmenes: db/dev sanos,28 bases de usuario ONLINE; no eliminación de volúmenes ni DML/DDL de negocio sobre la base principal. No existía un hash previo de datos de desarrollo, por lo que no se reclama igualdad byte a byte de esa base. El intento fallido no cuenta como validación limpia. Se corrigió el generador y se repitió con8 líneas, nombre -p explícito, puertos y volúmenes distintos; README documenta esa protección. La interrupción temporal de contenedores es un riesgo observado, no una operación Git/publicación.
+
+CI remota, Azure y M37 siguen pendientes de evidencia humana. Lectura local de historial/configuración no encontró secretos reales; fallback público del template y fixtures sintéticos se distinguen de credenciales personales. .env se ignora y excluye de la imagen. SP SHA256 sin cambios: Properties E52171268E2BAAD14E4AF4380830499E54861686AB8512D8FBA833F0770AE09F; Technicians FF5271FB224E4A6706CED7DF032AF6B3113FF100B082425A479A96B33765D9F5. No se modificaron src, tests, migraciones, scripts SQL canónicos, sus recursos o ValidateReports. No commit, push, merge, tags, releases ni cambio de visibilidad. No se contrataron recursos ni servicios externos de revisión.
+
 ## T10.2: remediación acotada y evidencia real
 
 - Base67c8bbd, Git limpio al comenzar. Se implementaron únicamente F07/F08/F10 y regresiones. La auditoría T10.1 permanece histórica; estados/propuestas individuales y evidencia posterior en TECHNICAL_AUDIT.md sección15. No cambios en README, Compose, reglas de negocio, paquetes, modelos EF o scopes ambientales. T11 no iniciada.
