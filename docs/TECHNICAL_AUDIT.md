@@ -1,0 +1,320 @@
+# Auditoría técnica T10.1
+
+Fecha: 2026-11-26. Base del repositorio: `cfa7623`, rama `dev`, Git limpio al comenzar. Auditoría local con apoyo de Codex; no se realizaron correcciones.
+
+## 1. Resumen ejecutivo
+
+La aplicación funciona en el entorno local y la arquitectura en capas es proporcional al ejercicio. Se reprodujeron **87 pruebas unitarias y 144 de integración aprobadas: 231 total, cero fallidas y omitidas**, con conexión normal. Restore, build, herramientas, auditoría NuGet y publicación Release terminaron con código 0; build sin advertencias ni errores. Los ocho endpoints existen en OpenAPI y se ejercitaron por HTTP real.
+
+Esto **no equivale a cumplimiento funcional completo**. Los reportes conservan deuda aceptada: ValidateReports volvió a producir seis PASS, nueve incumplimientos y error 51910. Se reprodujeron además un rechazo indebido de UPDATE por lote del trigger, incompatibilidad del validador de esquema con el journal del seed y pérdida de rollback si se configura Enlist=false. El README todavía no explica cómo iniciar esta implementación completa.
+
+Se identifican **14 hallazgos consolidados: P0=0, P1=5, P2=7, P3=2**. No se encontraron indicios de secretos personales/corporativos ni vulnerabilidades NuGet reportadas, dentro del alcance descrito. No se certifica seguridad de producción ni ausencia general de condiciones de carrera.
+
+Preparación para entrega: **condicionada** a resolver o comunicar expresamente los P1. El responsable mantiene la autoría y decisión exclusiva sobre correcciones de sus SP manuales. T10.2 y T11 no se iniciaron.
+
+## 2. Alcance, método y límites
+
+- Leídos AGENTS, README original, DECISIONES, requisitos, arquitectura, base de datos, backlog, Compose, configuración, tres proyectos, 60 archivos C# de src, todos los archivos de pruebas y scripts de migrations/scripts/seed/validation. Inspección repartida en lecturas locales acotadas; sin servicios externos de revisión ni envío del código a terceros.
+- Evidencia diferenciada: ejecución observada, inspección estática y aspectos NOT VERIFIED. Las pruebas no se modificaron para aprobar y los SP no se alteraron ni se generaron versiones corregidas.
+- Sólo se aprovisionó y escribió en bases locales aisladas. Principal: `PropertyMaintenanceDb_T04_T101_20261126`. Las pruebas de migraciones crearon sus propias bases GUID T04_T09_Clean/Existing y las retuvieron conforme a su implementación; no se eliminó ninguna base existente.
+- La API temporal usó 8081. La instancia del usuario en 8080 y su base principal no recibieron cambios. Los fixtures E2E, de concurrencia y de sondas se limpiaron por sus claves identificadas; los scripts con transacciones terminaron en rollback cuando correspondía.
+- La revisión adicional Gentle AI de T09 fue rechazada por el usuario. El intento de registrar ese rechazo falló por inventario obsoleto después del commit; no inició revisión ni produjo aprobación. No se reactivó ni se ejecutó una revisión externa para T10.1.
+- Sólo se escriben este informe y el estado del backlog. No se actualiza DECISIONES en esta fase por la restricción expresa de superficies permitidas; el uso efectivo de IA y sus límites quedan documentados aquí.
+
+## 3. Versiones y entorno observado
+
+| Componente | Valor |
+|---|---|
+| Host de trabajo | Windows, PowerShell; ejecución .NET dentro de Docker dev |
+| Contenedor SDK | Ubuntu 24.04, linux-x64; SDK 10.0.404, MSBuild 18.9.15 |
+| Runtime / ASP.NET Core | 10.0.15 |
+| SQL Server local | 16.0.4325.4, Developer Edition 64-bit, SQL Server 2022 |
+| Framework objetivo | net10.0 en los tres proyectos |
+| EF SqlServer / Design / dotnet-ef local | 10.0.7, alineados; Design PrivateAssets=all |
+| DbUp | 5.0.40 |
+| OpenAPI / Mvc.Testing | 10.0.15 |
+| Swagger UI / PKCS | 7.2.0 / 9.0.21 |
+| xUnit / runner / Test SDK / coverlet | 2.9.3 / 3.1.4 / 17.14.1 / 6.0.4 |
+
+No se instalaron dependencias nuevas ni herramientas globales. La versión OpenAPI servida fue 3.1.1. Azure SQL no fue contactado: compatibilidad por inspección no sustituye una ejecución real allí.
+
+## 4. Matriz de trazabilidad del enunciado original
+
+Unidad de conteo: 37 requisitos obligatorios verificables, agrupando los campos de cada entidad y separando cada endpoint, regla y mínimo del seed. No se cuentan como requisitos de producto las ponderaciones de evaluación, estimación de horas o sugerencias del entorno. Resultado: **32 PASS, 0 PARTIAL, 3 FAIL, 2 NOT VERIFIED**. PASS significa probado en el alcance local indicado, no una garantía universal.
+
+Rutas de pruebas abreviadas: `IT/` = tests/PropertyMaintenance.IntegrationTests; `UT/` = tests/PropertyMaintenance.UnitTests. Migrations y validaciones están bajo database/. Los textos entre comillas proceden de README; la descripción de campos conserva su contenido sin exigir etiquetas HTTP en español.
+
+| ID | Requisito original / README | Implementación | Prueba o evidencia actual | Estado / hallazgo |
+|---|---|---|---|---|
+| M01 | C#, .NET 10 y SQL Server 2022/2025, línea 5 | Tres csproj, Compose | build, dotnet --info, SERVERPROPERTY | PASS |
+| M02 | Compatible con Azure SQL, línea 5 | T-SQL interno y proveedor SQL Server | Inspección sin incompatibilidad evidente; no despliegue Azure | NOT VERIFIED |
+| M03 | Edificio: nombre, dirección, ciudad, línea 25 | 002, Property.cs | ValidateSchema antes del seed | PASS |
+| M04 | Unidad: edificio, número, piso, tipo, línea 26 | 001/002, Unit.cs, UnitTypes | ValidateSchema/Seed y GET unidades | PASS |
+| M05 | Inquilino: nombre, email único, teléfono, línea 27 | 002, Tenant.cs | ValidateConstraints: email duplicado rechazado | PASS |
+| M06 | Contrato: unidad, inquilino, inicio, fin nullable, renta, línea 28 | 002, Lease.cs | ValidateSchema/Constraints/LeaseOverlap | PASS |
+| M07 | Técnico: nombre, especialidad, activo, línea 29 | 001/002, Technician.cs | ValidateSchema/Seed; asignación y visita | PASS |
+| M08 | Solicitud: campos y técnico/cierre nullable, línea 30 | 002, MaintenanceRequest.cs | DataAccessTests y E2E SQL | PASS |
+| M09 | Visita: solicitud, técnico, fecha, notas, costo, línea 31 | 002, Visit.cs | VisitHttpTests y E2E SQL | PASS |
+| M10 | Máximo un contrato vigente, línea 35 | Trigger 004 | 15 casos SQL y tres pares de sesiones; protege solapamientos en los casos ejecutados | PASS; F07 limita UPDATE válido adicional |
+| M11 | Sólo inquilino con contrato vigente crea solicitud, línea 36 | MaintenanceRequestService.CreateAsync, LeaseRepository | MaintenanceRequestHttpTests, CreationConcurrencyTests, E2E | PASS con configuración normal; F10 condicional |
+| M12 | Sólo transiciones Open→Assigned→InProgress→Closed y cancelaciones aprobadas, línea 37 | MaintenanceRequestModel.CanTransition, servicio | UT StatusTransitionTests: 25 pares; IT StatusHttpTests; E2E reapertura 409 | PASS |
+| M13 | Asignación requiere técnico activo, línea 38 | Servicio, TechnicianRepository | StatusHttpTests / StatusTransitionTests | PASS |
+| M14 | Cierre requiere visita y registra fecha, línea 39 | Servicio, HasVisitsAsync | StatusHttpTests y E2E SQL ClosedAt | PASS |
+| M15 | Costos no negativos, línea 40 | DTO, VisitModel, CHECK SQL | VisitHttpTests, UT, ValidateConstraints | PASS |
+| M16 | Esquema con PK/FK/restricciones, línea 76 | 001–003 | ValidateSchema antes del seed; cero cascadas observadas | PASS |
+| M17 | Esquema versionado recreable, línea 77 | DbUp y recursos 001–007 | Base nueva: siete scripts reales; IT ReportMigrationTests | PASS |
+| M18 | Seed reproducible, mínimo 3 edificios, líneas 82–84 | 001_SeedDemoData.sql, DemoSeedVersions | ValidateSeed 01/02 y hashes idénticos tras reinicio | PASS |
+| M19 | 30 unidades repartidas, línea 85 | Seed | ValidateSeed 02/03: diez por edificio | PASS |
+| M20 | 20 inquilinos con contratos vigentes y vencidos, línea 86 | Seed | ValidateSeed 04–06 | PASS |
+| M21 | 5 técnicos, uno inactivo mínimo, línea 87 | Seed | ValidateSeed 07/15 | PASS |
+| M22 | 100 solicitudes últimos seis meses, todos los estados y visitas coherentes, línea 88 | Seed | ValidateSeed 08–17; referencia inicial UTC persistida | PASS en base nueva |
+| M23 | POST /api/maintenance-requests, línea 100 | MaintenanceRequestsController.Create | HTTP negativos/positivos y E2E 201 con SQL persistido | PASS |
+| M24 | POST /api/maintenance-requests/{id}/visits, línea 101 | CreateVisit / VisitService | VisitHttpTests/concurrencia; E2E 201/201/409 | PASS |
+| M25 | PATCH /api/maintenance-requests/{id}/status, línea 102 | ChangeStatus | StatusHttpTests y E2E 200/200/200/409 | PASS |
+| M26 | GET /api/properties/{id}/units con inquilino vigente o vacío, línea 108 | PropertiesController, PropertyRepository | ReadHttpTests: vigencia/vacancia/límites; HTTP 200 con diez unidades | PASS |
+| M27 | GET listado paginado, filtros y datos relacionados, línea 109 | ListAsync, RequestFilter | ReadHttpTests y E2E filtros combinados; SQL OFFSET/FETCH | PASS |
+| M28 | GET historial con contratos, solicitudes y costos, línea 110 | TenantsController, TenantRepository | ReadHttpTests con SQL independiente; E2E costo 30.35 | PASS |
+| M29 | GET resumen por edificio con métricas en rango, línea 111 | SP PropertiesSummary, ReportRepository | ValidateReports P03/P04/P05 fallan; HTTP 200 no demuestra exactitud | FAIL — F01/F02 |
+| M30 | GET carga por técnico activo, visitas/mes/costo y orden por carga, línea 112 | SP TechniciansWorkload | ValidateReports T04–T08, resultados detallados abajo | FAIL — F03/F04; F05 adicional |
+| M31 | Al menos un reporte escrito en T-SQL a mano, línea 114 | Ambos archivos canónicos database/scripts | Autoría declarada por desarrollador, commits b1a7270/fc78fb1 y bytes preservados; no atribución a IA | PASS documental |
+| M32 | Códigos HTTP adecuados y errores consistentes, línea 116 | ApiController, RequestException, ApiExceptionHandler | Suite HTTP 400/404/409/500 y E2E sin stack traces | PASS |
+| M33 | README con ejecución, prueba de endpoints y supuestos, líneas 120/137 | README conserva sólo enunciado/entorno | Compose ejecuta sleep infinity; faltan pasos de esta aplicación en README | FAIL — F06 |
+| M34 | DECISIONES: elecciones y qué haría distinto, líneas 138–140 | DECISIONES y riesgos documentados | Lectura de decisiones ORM/capas/SQL/limitaciones | PASS documental |
+| M35 | Revelar uso real de IA y validación/correcciones, línea 141 | DECISIONES, este informe | Registros distinguen autoría manual, apoyo IA y resultados | PASS documental |
+| M36 | Historial incremental, línea 142 | Git local | Trece commits alcanzables; trabajo SQL manual separado | PASS |
+| M37 | Entrega mediante link a repositorio público, línea 9 | Entrega externa | No se verificó publicación, visibilidad ni envío remoto | NOT VERIFIED |
+
+### Extras opcionales, separados de obligaciones
+
+| ID | Extra original / README | Evidencia | Estado |
+|---|---|---|---|
+| O01 | Pruebas automatizadas, línea 128 | 231 aprobadas y assertions revisadas | PASS |
+| O02 | Transacciones/explicación, línea 129 | Scopes y rollback normal; F10 con Enlist=false | PARTIAL |
+| O03 | Índices y justificación, línea 130 | 003 y docs/ARCHITECTURE; sin medición de planes | PASS documental/estructural |
+| O04 | Logging estructurado/handler global, línea 131 | ILogger y ProblemDetails; F13 no invalida existencia | PASS |
+| O05 | Validación de entrada, línea 132 | DTO/servicios y pruebas de límites/formato | PASS |
+| O06 | Pipeline CI, línea 133 | No hay workflow versionado identificado | FAIL opcional, no bloquea por sí solo |
+
+La arquitectura V2, 30 días UTC/AsOfUtc, reglas RN adicionales, nombres/tipos exactos, seed detallado, RowVersion, pruebas de lotes y bloqueo concurrente son decisiones aprobadas adicionales. Se auditan abajo, sin atribuir todos esos detalles al README. El arranque con un único Compose es un ideal del enunciado, no obligación independiente; instrucciones completas sí son obligatorias.
+
+## 5. Compilación, publicación y auditoría de dependencias
+
+Comandos ejecutados dentro de dev; la variable de conexión apunta únicamente a la base aislada y sus credenciales no se reproducen aquí:
+
+```text
+dotnet tool restore
+dotnet restore PropertyMaintenance.slnx
+dotnet build PropertyMaintenance.slnx
+dotnet test PropertyMaintenance.slnx --collect:"XPlat Code Coverage" --results-directory /tmp/propertymaintenance-t101-results --logger "trx;LogFilePrefix=audit"
+dotnet list PropertyMaintenance.slnx package --vulnerable --include-transitive
+dotnet publish src/PropertyMaintenance.Api/PropertyMaintenance.Api.csproj --configuration Release --output /tmp/propertymaintenance-t101-publish
+```
+
+| Verificación | Código | Resultado observado |
+|---|---:|---|
+| Tool restore | 0 | dotnet-ef 10.0.7 local restaurado |
+| Restore | 0 | Proyectos actualizados |
+| Build | 0 | Tres proyectos, 0 warnings, 0 errors |
+| Test con conexión normal | 0 | UT 87/87, IT 144/144, skip 0 |
+| NuGet directo/transitivo | 0 | Tres proyectos sin vulnerabilidades reportadas por nuget.org |
+| Publish Release | 0 | DLL y artefactos publicados en directorio temporal |
+| Arranque Release y segunda inicialización | En ejecución, luego parada controlada | Sin scripts pendientes, seed ya aplicado; no se confunde parada con fallo |
+
+NuGet Audit consulta metadatos públicos de paquetes; no se envió el código para revisión externa. El resultado corresponde a las fuentes y fecha observadas, no asegura inexistencia futura de vulnerabilidades.
+
+## 6. Pruebas y cobertura
+
+- La suite normal reproduce exactamente 231 aprobadas; no se detectaron pruebas omitidas. La colección SQL impide paralelismo dentro del proceso y la cadena exige servidor local y prefijo T04. No evita que dos procesos compartan la misma base: es una limitación de aislamiento.
+- Assertions significativas: 25 pares de estados, error SQL específico 51021, error de bloqueo 1222, conservación de RowVersion, 409 por conflicto optimista, rechazo sin cambios persistidos, importes/fechas, DTOs controlados por servidor y comparaciones SQL independientes.
+- ReportHttpTests caracteriza algunos resultados incorrectos actuales. Es evidencia de fidelidad de integración, no conformidad del reporte. Se mantiene separado del fallo SQL 51910.
+- Las pruebas de migraciones retienen dos bases por invocación; esta ejecución agregó otras dos. La repetición consume recursos aunque no borre datos: F11.
+- Huecos concretos: UPDATE de varios contratos que desplaza filas del mismo lote; Enlist=false; recuperación ante error parcial del setup; asignación concurrente con desactivación del técnico no instrumentada específicamente. Fallos/limitaciones del oracle de reportes: F09. No se persigue cobertura objetivo arbitraria ni se propone duplicar pruebas de repositorios/servicios sin necesidad.
+
+Cobertura con coverlet ya instalado, sólo paquete PropertyMaintenance.Api:
+
+| Sesión | Líneas | Cobertura de líneas | Cobertura de ramas |
+|---|---:|---:|---:|
+| Integración | 952/1241 | 76.71% | 58.13% |
+| Unitarias | 166/1241 | 13.37% | 28.25% |
+| Unión por archivo+número de línea | 957/1241 | **77.12%** | No calculada como unión |
+
+No se sumaron porcentajes. Los XML duplicados por el logger TRX se deduplicaron por identidad archivo/línea y presencia de hits. La instrumentación incluye código generado, por lo que el porcentaje no es una nota de calidad ni una medida exclusiva de reglas manuales. Artefactos temporales: /tmp/propertymaintenance-t101-results (TRX y Cobertura).
+
+Pruebas de diagnóstico aparte de la suite: la sonda de configuración Enlist=false ejecutó una prueba existente sin modificarla y **falló una**, código 1, esperado 100 registros/real 101. Tras limpiar su registro y volver a conexión normal, esa misma prueba pasó. Ese fallo condicional no se oculta ni se cuenta entre las 231 de la ejecución normal.
+
+## 7. Resultados SQL y reportes manuales
+
+Los scripts se enviaron sin cambios a sqlcmd local con `-b`. Cada código se capturó individualmente para continuar tras un fallo conocido.
+
+| Script / condición | Código | Resultado |
+|---|---:|---|
+| ValidateSchema.sql, antes del seed | 0 | Once tablas, columnas, constraints, índices, RowVersion y SchemaVersions válidos |
+| ValidateConstraints.sql | 0 | Casos positivos/negativos, defaults UTC, cero costo y limpieza verificados |
+| ValidateLeaseOverlap.sql | 0 | Quince casos aprobados; eliminación de fixtures confirmada |
+| ValidateSeed.sql | 0 | Diecisiete controles aprobados usando referencia persistida |
+| ValidateReports.sql | 1 | Seis PASS, nueve FAIL conocidos; 51910 tras rollback |
+| ValidateSchema.sql, después del seed | 1 | 51001: DemoSeedVersions no está permitido en whitelist; F08 |
+| Sonda UPDATE válido por lote, rollback | 0 como diagnóstico | Operación rechazada con 51021; defecto F07 reproducido |
+
+Constraints de importes/fechas, FKs restrictivas, catálogos, RowVersion y trigger habilitado fueron verificados. Consulta de sys.foreign_keys: cero cascadas; sys.triggers: cero deshabilitados. No se encontró NOLOCK ni READ UNCOMMITTED en la lógica auditada. DATE/DATETIME2(3)/DECIMAL(18,2) y catálogos corresponden al diseño. El promedio/costos de SP tienen tipos reales diferentes y están mapeados explícitamente.
+
+### Nueve incumplimientos, individualizados
+
+Fixture base: rango 2026-01-10 al mismo día. `closed-in`: 12:00→13:30 (90 min); `closed-before`: enero 9 23:00→enero 10 00:30 (90 min); `closed-out`: enero 10→enero 11 (1440 min). Visitas: 10.10+20.25 en closed-in; 100 el enero 12 en closed-out; 50 en enero 10 sobre old-pending creado diciembre 1; 7 por técnico distinto en InProgress. Técnico activo A tiene old-pending Assigned e InProgress; técnico activo B realiza la visita de 7 pero no tiene carga. Se agregan luego otras dos visitas de 1 y 2 a old-pending para medir fan-out.
+
+Además del script intacto se ejecutó una copia exclusivamente en memoria con SELECT de observación añadidos antes del rollback. No se cambió ningún archivo, expectativa o error final. Se observaron: edificio `(Open=4, Closed=3, Avg=9, Cost=37.35)`; técnico A `(Assigned=1, InProgress=1, Workload=2, Recent=0, Cost=50)`; después de las dos visitas extra `(Assigned=3, InProgress=1, Workload=2, Recent=0, Cost=53)`.
+
+| Control fallido | Regla y origen | Esperado / real observado | Causa e impacto | Prioridad, recomendación conceptual / intervención |
+|---|---|---|---|---|
+| P03 | Cerradas con ClosedAt en rango; precisión aprobada de M29 | 2 / **3** | BASE admite CreatedAt dentro y el SUM posterior no filtra ClosedAt; cuenta closed-out | P1, F01: separar población de cada métrica; SP manual, esfuerzo medio |
+| P04 | Promedio de resolución en horas fiel, M29; decimales aprobados | 1.5 / **9** | Incluye las tres duraciones; 540 min/60=9. Incluso corrigiendo población, AVG entero/60 daría 1 | P1, F02: población correcta y aritmética decimal; manual, pequeño/medio |
+| P05 | Todas las visitas del rango, M29 | 87.35 / **37.35** | Visita 50 de old-pending queda fuera por BASE de solicitudes; gasto subestimado | P1, F01: agregar visitas por su propia fecha; manual, medio |
+| P07 | SP rechaza rango invertido; decisión adicional, no falla HTTP | Error definido / **sin error, filas con 0/0/null/0** | SP suma un día a To sin validar; API sí devuelve 400 | P2, F05: validar contrato temporal explícito; manual, pequeño |
+| T04 | Activos sin actividad presentes; decisión adicional que precisa M30 | 1 fila B / **0 filas** | WHERE sobre StatusId elimina preservación del RIGHT JOIN | P1, F03: técnicos activos como universo base; manual, medio |
+| T05 | Costo acumulado histórico de técnico, M30 | Oracle pide 80.35 / **50.00** | Excluye visitas de Closed; **oracle también es incompleto**: sin límite AsOf, el total del fixture es 180.35 incluyendo visita de enero 12 | P1 F03 y P2 F09: acordar oracle histórico correcto antes de validar corrección; manual SQL y test autorizado |
+| T06 | Costos al técnico que visita, decisión aprobada de M30 | B: fila y 7 / **fila ausente, sin valor** | Filtra por técnico asignado y solicitudes pendientes; atribución incorrecta | P1, F03: agregar por Visits.TechnicianId independiente de carga; manual, medio |
+| T07 | Últimos 30 días UTC respecto de AsOf fijo; decisión adicional de M30 | 3 a enero 11 / **0** en servidor noviembre 26 | SP ignora parámetro, usa GETDATE; resultado depende del reloj real | P2, F05: usar referencia acordada y límites; manual, pequeño/medio |
+| T08 | Múltiples visitas no multiplican carga, M30 | Assigned=1, Total=2 / **Assigned=3, Total=2** | JOIN a visitas antes de SUM; ORDER BY COUNT también depende del fan-out | P1, F04: granularidad de solicitudes antes de combinar visitas y ordenar por carga; manual, medio |
+
+No se convierten estos fallos en PASS por ser deuda aceptada. No se ejecutaron los 29 escenarios originales como 29 controles independientes; los quince controles existentes agrupan varios casos. No se afirma cobertura exhaustiva de fechas futuras o de todos los empates de orden. La condición de no incluir visitas posteriores a AsOf falta por inspección; no se aisló una sonda específica de esa variante.
+
+### Idempotencia y preservación
+
+Después de limpiar E2E/sondas se reinició la API Release con seed habilitado: cero scripts pendientes y demo ya aplicada. Hashes de JSON ordenado de las siete tablas (incluyendo IDs, fechas y RowVersion) y journal antes/después:
+
+```text
+Negocio SHA256: 72184311BA7A32FF40DB25604157ED9A09870DE09958EC9C801981B41FA9D009
+Journal SHA256: 394B6F6A359D33DE2894C202CA6CC5E05162F43DEA0FC648A4D0D8EFCD831DD7
+```
+
+Los dos pares fueron idénticos. Journal: siete entradas de esquema; demo con journal separado. Esto verifica el mecanismo integrado, no que ejecutar el INSERT crudo del seed sin DbUp sea idempotente.
+
+### Flujo End-to-End por HTTP real
+
+Instancia temporal localhost:8081, sin mocks ni TestServer para este recorrido. Los identificadores se obtuvieron de consultas al seed, sin asumir que IDENTITY comienza en 1: edificio 3, unidad 5, inquilino 6, técnicos activos 2 y 3.
+
+| Paso | Resultado observado |
+|---|---|
+| Crear solicitud | 201, RequestId 256, Open, técnico/cierre null |
+| Asignar técnico 2 | 200, Assigned |
+| Iniciar | 200, InProgress, técnico 2 conservado |
+| Visita por técnico asignado | 201, VisitId 174, costo 10.10 |
+| Visita por otro técnico activo | 201, VisitId 175, técnico 3, costo 20.25 |
+| Cerrar | 200, Closed, técnico 2 conservado y ClosedAt UTC |
+| Visita después de cierre | 409, INVALID_VISIT_STATUS; no se agregó visita |
+| Reabrir/asignar tras cierre | 409, INVALID_STATUS_TRANSITION |
+| Consultar unidades | 200, edificio 3 con diez unidades |
+| Listar filtrando Closed/High/edificio 3, página 1 tamaño 5 | 200, solicitud 256 primera con datos relacionados |
+| Historial del inquilino 6 | 200, solicitud 256 con TotalVisitCost 30.35 |
+| Ambos reportes | 200; resumen edificio 3: Open 31, Closed 20, promedio 11, costo 3315.35; técnicos 2/3/4: carga 14/13/13 y costo reportado 0 |
+| SQL independiente | RequestId 256, StatusId 4, técnico 2, RowVersion de ocho bytes, exactamente dos visitas por 30.35 |
+
+CreatedAt=2026-11-26T11:03:37.088Z; visitas 11:03:37.501Z y 11:03:37.547Z; ClosedAt=11:03:37.568Z. El reporte de técnicos omitió los nuevos costos históricos sobre la solicitud ya cerrada: discrepancia observada F03, no un PASS semántico por recibir 200. Se limpiaron únicamente solicitud 256 y visitas 174/175 después de verificar SQL. El primer intento del cliente de auditoría no cargó System.Net.Http en PowerShell; se cargó la biblioteca y se repitió correctamente, sin cambiar la aplicación.
+
+SP preservados, SHA256 inicial/final:
+
+```text
+PropertiesSummary: E52171268E2BAAD14E4AF4380830499E54861686AB8512D8FBA833F0770AE09F
+TechniciansWorkload: FF5271FB224E4A6706CED7DF032AF6B3113FF100B082425A479A96B33765D9F5
+```
+
+## 8. Arquitectura, C# y seguridad
+
+- Tres proyectos, todos net10.0, ambos tests referencian Api y Api no referencia tests. DbContext Scoped mediante AddDbContext. No ciclos de proyectos observados.
+- Controllers delegan; no contienen SQL ni agregaciones. Servicios gestionan reglas y transacciones; repositorios concretos contienen EF/SQL parametrizado. Entidades generadas, modelos de negocio y DTOs están separados; mapeo explícito. Sin repositorio genérico, Unit of Work genérico, MediatR, CQRS, AutoMapper ni infraestructura excesiva. No se recomienda cambiar de arquitectura.
+- NRT habilitado; async/CancellationToken y liberación mediante using/await using en accesos normales. Excepciones esperadas y validación diferenciadas. DBNull/NULL de reportes representados según el SQL actual. No se identificó dependencia nueva sin uso que justifique eliminación en esta fase.
+- Fechas de escritura usan UTC/TimeProvider y truncado a ms; DATETIME2 leído se marca UTC conforme a convención de almacenamiento, no convierte datos históricos mal almacenados. SQL Server no guarda zona en DATETIME2. Relojes entre instancias no monotónicos pueden producir cierre anterior a una visita; posibilidad estática no reproducida, no regla original adicional impuesta aquí.
+- Costos usan decimal, validación de escala/rango antes de persistir y converter de JSON para evitar redondeo silencioso de números extremos. DECIMAL(38,2) fuera de CLR provoca OverflowException, verificado por prueba existente. No se sustituye por cero.
+- DTOs de escritura rechazan campos no mapeados: no aceptan controlar IDs generados, fechas, estados ajenos al endpoint o RowVersion. Pruebas existentes cubren identificadores, enums como texto, longitudes, importes, fechas y overflow de paginación.
+- SQL interpolado EF genera parámetros; SqlParameter en SP; LINQ parametrizado. El nombre aleatorio de base en pruebas se forma internamente, no desde HTTP. No se observó concatenación de entrada del cliente en SQL.
+- Handler no devuelve stack traces, credenciales ni mensajes SQL al cliente; el ensayo de errores inesperados está aprobado. ILogger del handler usa un texto de operación inexacto (F13); no se encontró EnableSensitiveDataLogging. No se garantiza que todo proveedor/excepción futuro nunca incluya un dato sensible: límite de inspección.
+- Escaneo local de texto versionado y 13 commits/206 blobs únicos: patrones de credenciales, claves privadas y tokens conocidos. Se identificó únicamente la credencial pública del template de desarrollo en .env.example, Compose, README y documentación/historial. **No se reproducen sus valores**. No se identificaron secretos personales/corporativos adicionales. No abarca objetos Git inalcanzables ni garantiza ausencia de formatos arbitrarios de secreto.
+- Compose publica en todas las interfaces del host y utiliza administrador SQL de desarrollo: F12. No se realizó sondeo remoto ni se afirma que el firewall permita acceso externo. Autenticación/autorización fuera de alcance; es limitación para exposición productiva, no incumplimiento del ejercicio.
+
+## 9. Concurrencia comprobada y límites
+
+| Área | Evidencia ejecutada | Resultado y alcance |
+|---|---|---|
+| Contratos INSERT/UPDATE, inclusividad/NULL/lotes | ValidateLeaseOverlap 15 casos | PASS de los casos existentes; F07 revela hueco en UPDATE conjunto válido |
+| Contratos incompatibles, dos sesiones | Scripts SameUnit A/B; B sólo se lanzó tras observar A en WAITFOR por DMV | A commit, B error 51021; estado final 2040: una lease |
+| Contratos compatibles, misma unidad | Scripts Compatible A/B, misma coordinación | Ambos commit; 2041: dos leases; espera real SPID 85 bloqueado por 70, LCK_M_X |
+| Unidades diferentes | Scripts DifferentUnit A/B | Ambos commit; 2042: dos leases; no bloqueo en muestra tomada |
+| Creación frente a cambio de contrato | CreationConcurrencyTests.IndependentConnectionCannotInvalidateLeaseBetweenValidationAndInsert | PASS; segundo SqlConnection con Enlist=false obtiene 1222, no modifica lease, solicitud confirma |
+| Estado/RowVersion | StatusHttpTests.IndependentTransactionsProduceRowVersionConflictAndHttp409 | PASS; SPIDs distintos, transacción ganadora confirma, versión original conservada y HTTP 409 CONCURRENCY_CONFLICT |
+| Visita/cancelación y visita/cierre | VisitConcurrencyTests.VisitAndTerminalTransitionSerializeAcrossIndependentSessions | Dos casos PASS; DMV verifica bloqueo LCK_M_*, luego commit en orden válido y visita terminal rechazada |
+| Visita/desactivación | TechnicianDeactivationWaitsUntilValidatedVisitCommits | PASS; otra transacción espera al técnico y sólo desactiva después del commit |
+| Atomicidad con configuración normal | FailureAfterSaveRollsBackEntireCreation y FailureAfterVisitSaveRollsBackInsertion | PASS; post-SaveChanges fallido se revierte |
+| Configuración Enlist=false | Misma prueba de rollback de creación, sin cambiar código | FAIL reproducido 100→101, fila limpiada; configuración normal reprobada después: PASS |
+
+En la primera pareja también se observó bloqueo 85→70 LCK_M_X. Cada script tuvo código 0; B incompatibles maneja únicamente el error 51021 como esperado. No se confunde ese código 0 de validación con que ambas transacciones confirmaran.
+
+Trigger: applocks transaccionales por UnitId afectado, orden ascendente, timeout 10s; se comprueban intervalos inclusivos y lote. Servicios: creación Serializable; estados/visitas ReadCommitted con parent UPDLOCK,HOLDLOCK antes de técnico/hijos y técnico HOLDLOCK. Conexión normal comparte DbContext Scoped y enlistamiento ambiente. La lectura original de estado antes del bloqueo conserva la RowVersion para detectar una transición ganadora, no la reemplaza por versión reciente.
+
+No se observaron deadlocks en estos schedules; eso no demuestra ausencia general. No se capturó deadlock graph ni se ejecutó estrés. No se instrumentó TransactionInformation.DistributedIdentifier: promoción a DTC **NOT VERIFIED**. Una segunda conexión enlistada dentro del scope o cambios de repositorios podrían promover; los caminos actuales comparten contexto, pero no se afirma inmunidad general. Los tests de RowVersion que comparten una transacción por sí solos no prueban carrera real; aquí se contó por separado la prueba HTTP con transacciones/SPIDs independientes.
+
+## 10. Rendimiento: hechos frente a hipótesis
+
+La prueba existente SqlProjectionsUseBoundedQueriesAndServerSideOperations volvió a pasar y se inspeccionó su SQL real:
+
+```sql
+WHERE [m].[StatusId] = @status AND [u].[PropertyId] = @property
+  AND [m].[CreatedAt] >= @from AND [m].[CreatedAt] < @to
+ORDER BY [m].[CreatedAt] DESC, [m].[RequestId] DESC
+OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY
+-- Historial: agregado correlacionado, sin JOIN a contratos:
+COALESCE((SELECT COALESCE(SUM([v].[Cost]),0.0)
+          FROM [Visits] [v] WHERE [m].[RequestId]=[v].[RequestId]),0.0)
+```
+
+Observado: dos comandos para edificio/unidades, dos para conteo/página, tres para historial. LEFT JOIN preserva vacantes y técnico nullable; proyecciones evitan Email/RowVersion innecesarios; filtros, orden, agregación y paginación se ejecutan en SQL. AnyAsync para existencias; sin consultas por fila, lazy loading o Include indiscriminado en estas lecturas. No operaciones paralelas sobre el mismo DbContext.
+
+Índices relevantes ya existentes: Units(PropertyId,Number) único, Leases(UnitId,StartDate,EndDate), Leases(TenantId), MaintenanceRequests(UnitId,CreatedAt), MaintenanceRequests(TenantId), TechnicianId/StatusId y Visits(RequestId). Se revisó su correspondencia con los accesos; **no se inspeccionaron planes reales ni se afirma qué índice fue elegido**. Un índice global CreatedAt/RequestId sólo sería una hipótesis a medir con mayor volumen.
+
+El fan-out de reportes es un problema de corrección demostrado, no sólo de rendimiento. Offset profundo y conteo separado tienen costos/consistencia documentados; cambios concurrentes pueden desplazar páginas. No se midieron throughput, p95 ni cargas productivas, no se extrapolan tiempos de consultas sobre cien solicitudes y no se agregaron índices.
+
+## 11. Hallazgos consolidados y prioridad
+
+Las referencias son rutas del repositorio y líneas del estado auditado. Cada fila incluye categoría, requisito, evidencia/impacto, recomendación conceptual, esfuerzo e intervención. No se ofrecen parches ni SP corregidos.
+
+| ID / prioridad | Categoría y requisito | Archivo/línea y evidencia | Impacto / recomendación | Esfuerzo / autorización |
+|---|---|---|---|---|
+| F01 P1 | Funcional SQL, M29 | database/scripts/dbo.usp_GetPropertiesSummary.sql:28,43; filtro inicial mezcla CreatedAt/ClosedAt; P03 3 vs 2, P05 37.35 vs 87.35 | Conteos/gasto incorrectos; definir poblaciones independientes por métrica | Medio; desarrollador corrige SP manual y autoriza nueva migración |
+| F02 P1 | Precisión SQL, M29 | Mismo SP:45; AVG(INT)/60; P04 9 vs 1.5, con población correcta todavía 1 | Horas truncadas; aritmética decimal sin mezclar población | Pequeño/medio; intervención SQL manual |
+| F03 P1 | Universo/atribución SQL, M30 | database/scripts/dbo.usp_GetTechniciansWorkload.sql:20–31,40; T04/T06 sin filas, T05 50 vs histórico | Oculta técnicos y costos reales; separar activos, carga y visitas por técnico visitante | Medio; intervención SQL manual, sin reinterpretar sólo Assigned/InProgress para visitas |
+| F04 P1 | Granularidad/orden SQL, M30 | Mismo SP:36–45; T08 Assigned=3, Workload=2; COUNT de join para ordenar | Carga y ranking inconsistentes; agregado por solicitud y orden por métrica de carga | Medio; intervención SQL manual |
+| F05 P2 | Contrato temporal adicional | Properties SP:8, Technician SP:39; P07 no rechaza, T07 0 vs 3 | HTTP sí protege rango; SP no respeta AsOf ni frontera superior; acordar y validar referencia/límites | Pequeño/medio; manual, no cambiar reglas unilateralmente |
+| F06 P1 | Entrega/documentación, M33 | README.md:58–66,120,137; compose.yaml:25; Program.cs:52–56 | Falta recorrido de ejecución real: aprovisionar DB, conexión, seed, API y Swagger; añadir quick start conservando enunciado | Pequeño; autorización T10.2/T11 para docs, Compose sólo si se aprueba |
+| F07 P2 | Integridad de lotes aprobada | database/migrations/004_CreateLeaseOverlapTrigger.sql:69–80; enero/febrero movidos a febrero/marzo en un UPDATE válido reciben 51021 | Rechaza corrección válida, no evidencia de corrupción; comparar lote propuesto contra filas persistidas no afectadas | Medio; nueva migración autorizada, nunca editar 004 aplicada |
+| F08 P2 | Validador de esquema | database/validation/ValidateSchema.sql:19–27; 51001 tras crear DemoSeedVersions | Falso fallo en estado soportado; reconocer journals aprobados | Pequeño; autorización para modificar validación, no realizada |
+| F09 P2 | Oracle de pruebas de reportes | database/validation/ValidateReports.sql:40,45,63; promedio capturado INT; costo esperado 80.35 omite visita histórica 100 | Un SP correcto podría seguir fallando: total histórico del fixture 180.35, y columna INT impide probar 1.5 | Pequeño/medio; acordar contrato y autorizar prueba después de corrección manual, sin ocultar fallo actual |
+| F10 P2 | Configuración/transacciones | Program.cs:30–31,52–57; MaintenanceRequestService.cs:67–69; repositorio SaveChanges; prueba CreationConcurrencyTests:84–96 | Enlist=false aceptado deja fila tras excepción: 100→101; rechazar esa opción o administrar transacción explícita compatible | Pequeño para guard, medio para alternativa; autorización de código/configuración |
+| F11 P2 | Aislamiento/ciclo de vida de pruebas | IT/ReadFixtures.cs:33–56, VisitHttpTests.cs:22–29, ReportHttpTests.cs:86–92, ReportMigrationTests.cs:43–55 | Setup puede dejar filas si falla antes de devolver handle; cada suite retiene dos bases. Parte estática y retención observada | Medio; autorizar cambios de fixtures y un plan explícito de limpieza, nunca DROP implícito |
+| F12 P2 | Exposición local adicional | compose.yaml:10–12,31; .env.example:2 | Credencial pública del template y puertos en todas las interfaces; alcance de red depende del host | Pequeño; evaluar bind loopback/credencial local propia con autorización, no afirmar secreto corporativo filtrado |
+| F13 P3 | Observabilidad opcional | src/PropertyMaintenance.Api/Exceptions/ApiExceptionHandler.cs:18 | Todo error inesperado se anuncia como creación de solicitud, incluso reportes/visitas; mensaje neutro con path/método | Pequeño; cambio de código requiere autorización |
+| F14 P3 | Claridad documental | docs/REQUIREMENTS.md:31,49; docs/DATABASE.md:70; notas históricas backlog | Estados antiguos sin contexto inmediato dificultan reconstruir estado vigente; etiquetar snapshots y mantener sección actual | Pequeño; autorización de docs, no corregido en T10.1 |
+
+F11 usa prefijo IT abreviado definido en sección 4. No se elevan preferencias de formato, carpeta o arquitectura a defectos. Ausencia de CI, pin de SDK/imagen o métricas de producción son mejoras opcionales, no P1 adicionales. No se detectó P0 dentro del alcance; esto no constituye certificación de ausencia de riesgo grave en cualquier configuración.
+
+## 12. Riesgos aceptados temporalmente
+
+El responsable aceptó en T09 integrar sus SP sin cambios por tiempo y autoría manual. F01–F05 siguen vigentes; esa aceptación no cambia la matriz original ni los valores esperados. F09 exige revisar también el oracle antes de usar una ejecución verde como prueba de corrección.
+
+Persisten límites documentados: consistencia entre consultas de lectura, ventanas de offset bajo escrituras, fechas UTC por convención, único inicializador durante despliegue, credenciales/puertos del entorno de desarrollo y retención de bases de prueba. Autenticación/productivización no están incluidas. No se comprobó Azure ni publicación del repositorio. El rechazo de Gentle AI no elimina ni rebaja hallazgos.
+
+## 13. Recomendaciones para una T10.2 futura
+
+1. El desarrollador decide y corrige manualmente los reportes: F01–F05. Registrar nuevas migraciones sólo después de su autorización; preservar el historial y la atribución real.
+2. Acordar el costo histórico del fixture y el tipo de promedio del oracle: F09. Mantener evidencia roja hasta que resultado y expectativa sean válidos.
+3. Completar ejecución reproducible en README conservando el enunciado: F06. No exige cambiar Compose para lograr un único comando.
+4. Autorizar guard de enlistamiento, validación del journal y trigger de UPDATE por lote mediante nueva migración: F10/F08/F07. Cada corrección debe tener un caso de regresión proporcional.
+5. Mejorar fixtures y plan de limpieza de bases con permiso expreso; evaluar exposición local según contexto: F11/F12. Dejar F13/F14 para limpieza posterior si el tiempo lo permite.
+
+Nada de esta lista se implementa automáticamente. La auditoría no autoriza SQL, código, configuración, eliminación de bases, commit, push o avance a T11.
+
+## 14. Preparación para entrega y cierre de alcance
+
+La solución es ejecutable con configuración explícita y sus seis endpoints no relacionados con reportes cumplen los casos funcionales ejecutados. Tiene buenas bases de validación y concurrencia, con pruebas SQL reales y separación de capas defendible en entrevista. Los reportes no cumplen todos los indicadores originales y el README no guía todavía a un evaluador desde un checkout limpio. Por eso la recomendación es **entrega condicionada**, no aprobación integral.
+
+Verificación final de limpieza: 3 edificios, 30 unidades, 20 inquilinos, 26 contratos, 5 técnicos, 100 solicitudes y 110 visitas; cero fixtures identificables T09/T101/concurrencia. API temporal detenida. Los hashes de ambos SP siguen coincidiendo. Bases aisladas y artefactos de pruebas no se confunden con cambios versionados; no se eliminó ninguna base existente.
+
+Se conserva como evidencia positiva la suite 231/231, sin usarla para neutralizar SQL 51910, el fallo del validador después del seed ni el ensayo negativo de enlistamiento. No se modificó código funcional, SP, migraciones, seed, validaciones, pruebas, paquetes ni configuración. Sólo este informe y docs/BACKLOG.md. No commit ni push; T10.1 ejecutada, T10 permanece incompleta, T10.2/T11 no iniciadas.

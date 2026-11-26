@@ -1,5 +1,9 @@
 # Backlog de implementación
 
+## Estado actual: T10.1 auditada, sin correcciones
+
+Auditoría local sobre cfa7623 completada y documentada en TECHNICAL_AUDIT.md. Revalidación: 87 unitarias + 144 de integración aprobadas; build sin advertencias/errores, auditoría NuGet sin vulnerabilidades reportadas y publish Release exitoso. ValidateReports conserva seis PASS/nueve fallos (51910). Se reprodujeron fallos adicionales del validador de esquema tras seed, UPDATE válido por lote y rollback con Enlist=false. Catorce hallazgos consolidados: 0 P0, 5 P1, 7 P2, 2 P3. Ninguna corrección aplicada. T10 sigue pendiente de decisiones/correcciones; T10.2 y T11 no iniciadas. La revisión adicional Gentle AI de T09 fue rechazada por el responsable.
+
 ## T09: integración completada con deuda SQL aceptada
 
 Por instrucción explícita se integran los SP manuales existentes sin modificarlos: dos GET, parámetros seguros, DTOs, DbUp 006/007 mediante recursos embebidos, pruebas SQL/HTTP y documentación. Los criterios originales de exactitud SQL no se declaran cumplidos: ValidateReports identifica las discrepancias y devuelve fallo verificable. Detalles en DECISIONES.md. T10 no iniciada.
@@ -42,7 +46,9 @@ Las tareas están ordenadas por dependencia. T01 es la tarea ejecutada en esta f
 | T07 | Registro de visitas | T06 | POST 201/400/404/409; importes exactos; estados/técnicos coherentes; concurrencia A/B/C real; flujo HTTP completo; suite previa sin regresiones | Completada |
 | T08 | Endpoints REST de consulta | T04, T05, T06, T07 | Tres GET 200/400/404; vigencia UTC inclusiva; filtros antes de count/paginación SQL; orden determinista; costos sin duplicación; pruebas SQL/HTTP, fechas extremas y suite previa aprobadas | Completada |
 | T09 | Integración de stored procedures manuales | T01, T05, T08 | Dos GET y DbUp verificados; parámetros/mapeos seguros; SQL preservado por orden expresa; discrepancias originales visibles en validación SQL | Integrada con deuda SQL aceptada |
-| T10 | Integración, Swagger, logging y manejo global | T03, T07, T08, T09 | API documentada; Problem Details; logs útiles; pruebas de integración en entorno dev | Pendiente |
+| T10 | Integración, Swagger, logging y manejo global | T03, T07, T08, T09 | API documentada; Problem Details; logs útiles; pruebas de integración en entorno dev | En curso: T10.1 ejecutada; decisiones/correcciones pendientes |
+| T10.1 | Auditoría técnica integral, sin correcciones | T00–T09 | Trazabilidad original, ejecuciones reales, hallazgos priorizados, evidencia SQL/concurrencia/seguridad y sólo informe/backlog modificados | Ejecutada; ver TECHNICAL_AUDIT.md |
+| T10.2 | Correcciones que autorice el responsable tras la auditoría | T10.1 y aprobación de alcance | Resolver o aceptar hallazgos con evidencia; SQL manual reservado al desarrollador | No iniciada |
 | T11 | Verificación final y documentación de ejecución | T03, T10 | Restore/build/test completos; README actualizado sin borrar enunciado; supuestos y resultados documentados | Pendiente |
 
 ## Definición de terminado transversal
