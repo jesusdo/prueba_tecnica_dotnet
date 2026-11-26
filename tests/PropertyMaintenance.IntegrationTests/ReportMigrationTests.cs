@@ -43,7 +43,7 @@ public sealed class ReportMigrationTests(SqlFixture fixture)
     public async Task CleanAndExistingDatabasesReceiveProceduresOnceAndReturnEmptyReports(bool existing)
     {
         // Only new, explicitly test-named databases are created; none is dropped or overwritten.
-        var name = "PropertyMaintenanceDb_T04_T09_" + (existing ? "Existing_" : "Clean_") + Guid.NewGuid().ToString("N");
+        var name = "PropertyMaintenanceDb_T04_T102_" + (existing ? "Existing_" : "Clean_") + Guid.NewGuid().ToString("N");
         var builder = new SqlConnectionStringBuilder(fixture.ConnectionString) { InitialCatalog = "master" };
         await using (var master = new SqlConnection(builder.ConnectionString))
         {
@@ -55,14 +55,26 @@ public sealed class ReportMigrationTests(SqlFixture fixture)
         builder.InitialCatalog = name;
         var connection = builder.ConnectionString;
         var assembly = typeof(DatabaseMigrator).Assembly;
+        var definitionsBefore = new Dictionary<string, byte[]>();
+        var procedures = new[] { "dbo.usp_GetPropertiesSummary", "dbo.usp_GetTechniciansWorkload" };
+        async Task<byte[]> Definition(string procedure)
+        {
+            await using var reader = new SqlConnection(connection);
+            await reader.OpenAsync();
+            await using var command = reader.CreateCommand();
+            command.CommandText = "SELECT CONVERT(varbinary(max),OBJECT_DEFINITION(OBJECT_ID(@procedure)))";
+            command.Parameters.AddWithValue("@procedure", procedure);
+            return Assert.IsType<byte[]>(await command.ExecuteScalarAsync());
+        }
         if (existing)
         {
-            // Actually run 001–005 with DbUp, including its own journal. No fabricated baseline.
+            // Actually run 001–007, including the untouched manual procedures and journal.
             var baseline = DeployChanges.To.SqlDatabase(connection)
                 .WithScriptsEmbeddedInAssembly(assembly, n => n.StartsWith("PropertyMaintenance.Api.database.migrations.")
-                    && string.CompareOrdinal(n, "PropertyMaintenance.Api.database.migrations.006") < 0)
+                    && string.CompareOrdinal(n, "PropertyMaintenance.Api.database.migrations.008") < 0)
                 .JournalToSqlTable("dbo", "SchemaVersions").WithTransactionPerScript().Build().PerformUpgrade();
             Assert.True(baseline.Successful, baseline.Error?.GetType().Name);
+            foreach (var procedure in procedures) definitionsBefore[procedure] = await Definition(procedure);
         }
         var migrator = new DatabaseMigrator(NullLogger<DatabaseMigrator>.Instance);
         migrator.Apply(connection);
@@ -76,12 +88,27 @@ public sealed class ReportMigrationTests(SqlFixture fixture)
         var first = await Snapshot();
         using (var json = System.Text.Json.JsonDocument.Parse(first))
         {
-            Assert.Equal(7, json.RootElement.GetArrayLength());
+            Assert.Equal(8, json.RootElement.GetArrayLength());
             Assert.Contains("006_CreatePropertiesSummaryProcedure", first);
             Assert.Contains("007_CreateTechniciansWorkloadProcedure", first);
+            Assert.Contains("008_FixLeaseOverlapTrigger", first);
+        }
+        foreach (var procedure in procedures)
+        {
+            var definition = await Definition(procedure);
+            if (existing) Assert.Equal(definitionsBefore[procedure], definition);
+            else definitionsBefore[procedure] = definition;
         }
         migrator.Apply(connection);
         Assert.Equal(first, await Snapshot());
+        foreach (var procedure in procedures) Assert.Equal(definitionsBefore[procedure], await Definition(procedure));
+        await using (var validation = sql.CreateCommand())
+        {
+            validation.CommandText = "SELECT COUNT(*) FROM sys.tables WHERE schema_id=SCHEMA_ID(N'dbo') AND name=N'DemoSeedVersions'";
+            Assert.Equal(0, (int)(await validation.ExecuteScalarAsync())!);
+            validation.CommandText = SchemaValidationTests.ReadScript();
+            Assert.StartsWith("PASS:", Assert.IsType<string>(await validation.ExecuteScalarAsync()));
+        }
         var options = new DbContextOptionsBuilder<PropertyMaintenanceDbContext>().UseSqlServer(connection).Options;
         await using var db = new PropertyMaintenanceDbContext(options);
         Assert.Empty(await db.Database.SqlQuery<int>($"SELECT PropertyId AS Value FROM dbo.Properties").ToArrayAsync());

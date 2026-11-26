@@ -8,6 +8,11 @@ VALUES
     (N'Properties'), (N'Units'), (N'Tenants'), (N'Leases'), (N'Technicians'),
     (N'MaintenanceRequests'), (N'Visits');
 
+-- Journals are infrastructure tables, not additional business/catalog tables.
+-- DemoSeedVersions is optional when demonstration data is disabled.
+DECLARE @AllowedJournals TABLE (TableName SYSNAME NOT NULL PRIMARY KEY);
+INSERT INTO @AllowedJournals VALUES (N'SchemaVersions'), (N'DemoSeedVersions');
+
 IF EXISTS
 (
     SELECT 1
@@ -22,7 +27,7 @@ IF EXISTS
     FROM sys.tables AS actual
     WHERE actual.schema_id = SCHEMA_ID(N'dbo')
       AND actual.name NOT IN (SELECT TableName FROM @ExpectedTables)
-      AND actual.name <> N'SchemaVersions'
+      AND actual.name NOT IN (SELECT TableName FROM @AllowedJournals)
 )
     THROW 51001, N'Schema validation failed: unexpected user tables exist in dbo.', 1;
 

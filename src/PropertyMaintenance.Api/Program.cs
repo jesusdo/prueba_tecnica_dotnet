@@ -49,12 +49,8 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
-var connectionString = app.Configuration.GetConnectionString("PropertyMaintenance");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new InvalidOperationException(
-        "Connection string 'PropertyMaintenance' is required before the API can start.");
-}
+var connectionString = DatabaseConnectionConfiguration.Validate(
+    app.Configuration.GetConnectionString("PropertyMaintenance"));
 
 using (var scope = app.Services.CreateScope())
 {

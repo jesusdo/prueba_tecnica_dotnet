@@ -1,5 +1,15 @@
 # Arquitectura aprobada
 
+## T10.2: configuración compatible con transacciones ambientales
+
+La arquitectura y los scopes no cambian: creación usa TransactionScope Serializable; transiciones y visitas usan ReadCommitted, con sus bloqueos existentes. Las tres operaciones necesitan que el DbContext Scoped y su SqlConnection participen en el scope. Con Enlist=false, SaveChanges puede confirmar fuera del scope y sus bloqueos no quedan protegidos durante toda la operación.
+
+`DatabaseConnectionConfiguration.Validate` analiza la cadena con SqlConnectionStringBuilder. Omisión de Enlist (default true) y Enlist=true explícito se aceptan; Enlist=false se rechaza al arrancar, antes de resolver DbUp, abrir el servidor o atender HTTP. Configuración ausente/malformada produce mensajes fijos sin valor original, credenciales ni excepciones internas del parser. La entrada sigue proviniendo de la misma clave ConnectionStrings:PropertyMaintenance que consumen EF y DbUp; no se introduce una cadena duplicada.
+
+La validación se realiza sobre app.Configuration después de Build para respetar las fuentes y overrides de WebApplicationFactory, pero antes de inicializar la base y ejecutar Run. No reemplaza las transacciones, no incorpora Unit of Work ni valida cada repositorio con una infraestructura nueva.
+
+Limitaciones: el guard protege el arranque de esta API, no servicios construidos manualmente por otro consumidor con una cadena incompatible. Añadir conexiones enlistadas adicionales puede promover la transacción; no se promete ausencia de DTC o deadlocks. Los comportamientos de concurrencia y rollback siguen verificándose sobre SQL Server local con configuración soportada. Azure y exposición/entrega pública requieren evidencia independiente.
+
 ## T09: integración de procedimientos manuales
 
 ReportsController → ReportService → IReportRepository/ReportRepository → SQL Server. Sin paquetes, entidades persistentes o DbSets nuevos. Modelos de lectura, tipos internos del result set y DTOs HTTP separados mediante mapeo explícito. Database.SqlQuery<T> con SqlParameter DATE/DATE/DATETIME2(3), ToListAsync directamente sobre EXEC, sin composición LINQ de servidor ni agregaciones en C#. Se conserva el orden del SP y CancellationToken.

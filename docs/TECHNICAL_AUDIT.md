@@ -318,3 +318,85 @@ La solución es ejecutable con configuración explícita y sus seis endpoints no
 Verificación final de limpieza: 3 edificios, 30 unidades, 20 inquilinos, 26 contratos, 5 técnicos, 100 solicitudes y 110 visitas; cero fixtures identificables T09/T101/concurrencia. API temporal detenida. Los hashes de ambos SP siguen coincidiendo. Bases aisladas y artefactos de pruebas no se confunden con cambios versionados; no se eliminó ninguna base existente.
 
 Se conserva como evidencia positiva la suite 231/231, sin usarla para neutralizar SQL 51910, el fallo del validador después del seed ni el ensayo negativo de enlistamiento. No se modificó código funcional, SP, migraciones, seed, validaciones, pruebas, paquetes ni configuración. Sólo este informe y docs/BACKLOG.md. No commit ni push; T10.1 ejecutada, T10 permanece incompleta, T10.2/T11 no iniciadas.
+
+## 15. Remediación T10.2 — alcance autorizado
+
+Esta sección añade evidencia posterior sin reescribir la auditoría histórica. Base: 67c8bbd, rama dev, Git limpio al comenzar. Autorización exclusivamente para F07, F08 y F10, sus regresiones y documentación. No se modificaron SP manuales, sus recursos, migraciones 001–005, ValidateReports, README, Compose, esquema EF ni estrategia de transacciones. T11 no iniciada.
+
+### Correcciones y evidencia RED → GREEN
+
+| Hallazgo | Causa confirmada | Corrección mínima | Regresión y evidencia posterior | Estado |
+|---|---|---|---|---|
+| F07 | El propuesto de una fila se compara con el estado anterior de otra fila incluida en el mismo UPDATE; el estado final válido no importa al validador antiguo | Nueva 008 altera el trigger y excluye todos los LeaseId de deleted de la comparación con persistidos. Mantiene comparación entre filas propuestas, fechas inclusivas/NULL, 51021 y bloqueos por unión de unidades nuevas/anteriores en orden ascendente | RED: 3 de 17 casos fallaban (desplazamiento, intercambio de períodos y de unidades). GREEN: 19 casos de leases, incluyendo EF y dos concurrencias nuevas. No se editó 004 | RESOLVED |
+| F08 | La whitelist sólo permitía SchemaVersions; el seed crea DemoSeedVersions | Dos nombres de journals exactos separados de las once tablas requeridas. Todo el bloque de columnas, tipos y constraints permanece sin cambios | RED: base inicializada falla51001; tres tests: 1 fallaba. GREEN: 3/3; Missing Properties sigue51000, tabla inesperada51001. ReportMigrationTests valida también sin seed | RESOLVED |
+| F10 | TransactionScope requiere inscripción automática; Enlist=false permite SaveChanges fuera del scope | SqlConnectionStringBuilder valida el valor efectivo al arrancar; default/true válidos, false rechazado antes de DbUp/Run. Errores fijos sin cadena ni excepción interna | RED de arranque: llegaba a resolución de DbUp. GREEN: 12 unitarias +1 startup; artefacto publicado con false sale1 sin migraciones/HTTP. Rollback de creación/visitas y conflicto de estado: 3/3 con Enlist=true explícito | RESOLVED |
+
+Program valida después de Build para respetar configuración efectiva de WebApplicationFactory, antes de resolver migrador. No se movieron responsabilidades de transacciones: CreateAsync usa Serializable, ChangeStatusAsync/CreateVisit usan ReadCommitted y bloqueos ya existentes. El guard protege el arranque de esta API, no construcciones manuales con otra cadena fuera de ese arranque. No se instrumentó promoción DTC ni se garantiza ausencia general de deadlocks.
+
+### Regresiones y ejecución final
+
+Suite Release final: **99 unitarias +167 de integración =266 aprobadas, 0 fallidas y 0 omitidas**. Las 231 anteriores siguen aprobadas; se añaden **35 casos**: 12 configuración, 1 arranque, 3 esquema y 19 leases. Los cuatro casos de ReportMigrationTests ya existentes se conservan: sus expectativas pasan legítimamente de siete a ocho recursos por la migración nueva, y la ruta de actualización aplica realmente 001–007 antes de 008. No se modificaron aserciones de indicadores de reportes para hacerlas aprobar.
+
+Comandos ejecutados en dev: dotnet tool restore; dotnet restore PropertyMaintenance.slnx; dotnet build PropertyMaintenance.slnx -c Release; dotnet test PropertyMaintenance.slnx -c Release; dotnet list PropertyMaintenance.slnx package --vulnerable --include-transitive; dotnet publish src/PropertyMaintenance.Api/PropertyMaintenance.Api.csproj -c Release --output /tmp/propertymaintenance-t102-publish. Todos código0; build con cero warnings/errores; NuGet sin vulnerabilidades reportadas en los tres proyectos. Sin dependencias nuevas. No se volvió a medir cobertura ni se reclama un porcentaje nuevo.
+
+Base principal de regresión: PropertyMaintenanceDb_T04_T102_20261126, creada sin eliminar ni modificar bases existentes. Las pruebas DbUp usan sus bases aisladas propias; no se ejecutó contra la base principal de desarrollo.
+
+| Verificación SQL posterior | Resultado |
+|---|---|
+| ValidateSchema.sql con seed | Código0 |
+| ValidateSchema sin seed | Aprobado en ambas rutas clean/upgrade de ReportMigrationTests |
+| ValidateConstraints.sql | Código0, casos positivos/negativos y limpieza |
+| ValidateLeaseOverlap.sql | Código0, 15 casos originales |
+| ValidateSeed.sql | Código0, 17 controles |
+| ValidateReports.sql, sin cambios | Código1, **6 PASS /9 incumplimientos, error51910** |
+| Journals | Ocho entradas 001–008, ordenadas; segunda ejecución conserva IDs/nombres/fechas |
+| SP en upgrade | Definiciones byte a byte idénticas antes/después de 008; recursos canónicos también iguales |
+
+Concurrencia: se repitieron las tres parejas SQL existentes, lanzando B sólo después de observar A en WAITFOR mediante DMV. Misma unidad incompatible: A confirma, B51021, una lease2040; compatibles: ambas confirman, dos leases2041; unidades distintas: ambas confirman, dos leases2042. Se observaron SPID70 bloqueado por62 con LCK_M_X en los dos primeros casos; sin bloqueo en la muestra de unidades distintas. Códigos de validación0 en las seis sesiones; los scripts manejan únicamente51021 como rechazo esperado. Se limpiaron esos fixtures identificables.
+
+Además, dos regresiones nuevas con conexiones/transacciones distintas realizan el UPDATE válido por lote y sostienen su transacción: la inserción incompatible espera y falla51021; la compatible espera y confirma. Las pruebas verifican SPIDs distintos, bloqueo DMV antes del commit, estado final sin superposiciones y limpieza. Ninguno de estos resultados implica inmunidad universal a deadlocks.
+
+Verificación local independiente sobre snapshot temporal de los cambios: no encontró un blocker reproducido; confirmó que desde ExpectedColumns en adelante el validador permanece idéntico y que 008 sólo cambia ALTER y la exclusión de versiones anteriores. No fue revisión de terceros/Gentle AI. Sus comprobaciones fueron estáticas; la ejecución SQL/test anterior es evidencia del proceso principal. Snapshot temporal limpiado después de verificar su ruta; sin cambios fuera del alcance.
+
+### Dos requisitos NOT VERIFIED
+
+| ID | Evidencia adicional obtenida | Límite y siguiente validación | Estado |
+|---|---|---|---|
+| M02 Azure SQL | Revisión de scripts internos: sin CREATE DATABASE/USE ni dependencias de servidor detectadas. Microsoft documenta Azure SQL para sp_getapplock y triggers INSTEAD OF; 008 conserva esos mecanismos. Pruebas reales sólo en SQL2022 local | No hay destino/identidad Azure autorizados. Ejecutar migraciones y regresiones en una base Azure previamente aprovisionada requiere intervención humana/T11; inspección no equivale a despliegue | NOT VERIFIED |
+| M37 link a repositorio público | Configuración Git local tiene origin HTTPS en GitHub, sin credenciales embebidas | No se contactó remoto, verificó visibilidad ni realizó publicación/envío. El desarrollador debe comprobar enlace público y entrega en T11 | NOT VERIFIED |
+
+Fuentes técnicas oficiales consultadas, sin enviar código: [sp_getapplock](https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-getapplock-transact-sql?view=sql-server-ver16) y [CREATE TRIGGER](https://learn.microsoft.com/en-us/sql/t-sql/statements/create-trigger-transact-sql?view=sql-server-ver16). La matriz obligatoria histórica permanece 32 PASS, 3 FAIL, 2 NOT VERIFIED: estas tres correcciones adicionales no resuelven los dos reportes ni README.
+
+### Estado individual y propuestas fuera de alcance
+
+Sólo las filas RESOLVED anteriores se implementaron. Las propuestas siguientes quedan para decisión expresa; no constituyen autorización para ejecutarlas ni generan una versión corregida de los SP.
+
+| ID / prioridad | Causa e impacto real | Obligatorio / T11 | Corrección mínima propuesta | Riesgo de regresión / intervención | Estado |
+|---|---|---|---|---|---|
+| F01 P1 | Poblaciones de fechas mezcladas alteran cierres/gastos | M29; no es principalmente entrega | Separar las poblaciones de cada indicador y probar bordes | Medio: afecta totales; **corrección SQL personal del desarrollador**, nueva migración autorizada | OPEN |
+| F02 P1 | Aritmética entera pierde horas fraccionarias | M29; no T11 principalmente | Acordar decimal y población correcta del promedio | Medio: tipo/resultset cambia; SQL manual y ajuste de mapeo sólo autorizado | OPEN |
+| F03 P1 | Base de pendientes/igualdad de asignado omite visitantes, finalizadas y activos sin carga | M30; no T11 principalmente | Independizar técnicos activos, carga y actividad del técnico visitante | Medio: universo y costos; SQL manual, autorización adicional | OPEN |
+| F04 P1 | JOIN de visitas multiplica conteos/orden | M30; no T11 principalmente | Agregar a granularidad de solicitud antes de combinar actividad | Medio: ranking; SQL manual, autorización adicional | OPEN |
+| F05 P2 | SP no valida rango ni respeta AsOf acordado | Detalle adicional; API sí valida; no T11 principalmente | Acordar validación/límites UTC y parámetro | Medio: temporalidad de resultados; SQL manual, autorización adicional | OPEN |
+| F06 P1 | README no contiene la ejecución/pruebas de esta aplicación | M33; **principalmente T11** | Añadir quick start sin borrar enunciado: aprovisionar, conexión, seed, API, Swagger | Bajo: comandos deben comprobarse; autorización T11, no cambio Compose implícito | DEFERRED |
+| F07 P2 | Versiones anteriores del mismo lote se comparaban como ajenas | Decisión adicional de integridad | Aplicada 008 y regresiones | SQL compartido: riesgo acotado por pruebas; futuras variantes siguen requiriendo comprobación | RESOLVED |
+| F08 P2 | Journal de seed legítimo rechazado | Verificación adicional | Whitelist exacta y tests negativos, aplicada | Bajo; metadata restante intacta | RESOLVED |
+| F09 P2 | Oracle captura promedio INT y omite costo100 en expectativa histórica | Aseguramiento de M29/M30; no T11 principalmente | Acordar contrato histórico, ajustar oracle después de decisión SQL; mantener evidencia roja | Medio: riesgo de aprobar incorrectamente; autorización para pruebas, no modificado | OPEN |
+| F10 P2 | Enlist=false desactivaba atomicidad del scope | Robustez adicional, soporta reglas | Guard temprano aplicado, con configuración true/default | Bajo para configuración soportada; consumidores manuales fuera del arranque no cubiertos | RESOLVED |
+| F11 P2 | Setup parcial puede dejar fixtures; pruebas retienen bases nuevas | Calidad de tests opcional; limpieza puede planearse T11 | Hacer ownership antes del primer write y acordar retención/limpieza | Medio: cleanup podría borrar datos; autorización adicional y selección exacta antes de cualquier DROP | OPEN |
+| F12 P2 | Puertos en todas las interfaces y credencial pública del template | No fallo de autenticación del ejercicio; **T11/entorno** | Evaluar loopback y credencial local propia según despliegue | Medio: puertos/volumen existentes; autorización de Docker/credenciales | DEFERRED |
+| F13 P3 | Mensaje global dice creación para errores de otras operaciones | Logging opcional; no bloquea T11 | Mensaje neutro y contexto estructurado de ruta/método | Bajo: sólo diagnósticos; cambio de código requiere autorización | OPEN |
+| F14 P3 | Notas históricas dificultan identificar estado vigente | Documentación, indirectamente M33; **T11** | Etiquetar snapshots y consolidar estado actual sin borrar historia | Bajo; autorización adicional para limpieza global, no implementada | DEFERRED |
+
+Totales actuales: **3 RESOLVED, 8 OPEN y 3 DEFERRED**. Permanecen los cinco P1 originales; T10 no se cierra completamente y la preparación de entrega sigue condicionada por exactitud de reportes/instrucciones. No se cambia la prioridad de la deuda para mejorar artificialmente el resultado.
+
+### Preservación e intervención humana
+
+SHA256 antes y después de T10.2, sin diferencias:
+
+```text
+PropertiesSummary: E52171268E2BAAD14E4AF4380830499E54861686AB8512D8FBA833F0770AE09F
+TechniciansWorkload: FF5271FB224E4A6706CED7DF032AF6B3113FF100B082425A479A96B33765D9F5
+```
+
+No se editaron recursos embebidos ni archivos manuales. F01–F05 requieren corrección/decisión personal del desarrollador; F09 conserva su discrepancia de oracle explícita. M02/M37 requieren evidencia externa autorizada o validación humana. README/Docker/entrega definitiva se difieren, sin avance automático. No se hicieron commit ni push.

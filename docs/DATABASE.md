@@ -1,5 +1,17 @@
 # Diseño aprobado de base de datos
 
+## T10.2: remediación autorizada
+
+La migración nueva `008_FixLeaseOverlapTrigger.sql` altera el trigger existente sin editar 004 ni los SP manuales. La comparación contra filas persistidas excluye todos los LeaseId de `deleted`: son versiones anteriores reemplazadas por la sentencia, no contratos ajenos al lote. Las filas de `inserted` se comprueban entre sí y contra las persistidas no afectadas. El estado final debe seguir sin superposiciones; no se omite la detección entre miembros del mismo lote.
+
+Se conservan límites inclusivos, EndDate NULL, error 51021, caminos INSERT/UPDATE y applocks exclusivos de propietario Transaction por la unión de UnitId anteriores/nuevos, adquiridos en orden ascendente. La corrección permite desplazar/intercambiar períodos o unidades válidamente. El orden reduce riesgos pero no garantiza ausencia general de deadlocks. EF conserva su configuración existente sin OUTPUT para Leases.
+
+DbUp aplica ahora ocho recursos: 001–005, los SP canónicos embebidos como 006/007 y 008. Pruebas verifican base limpia y actualización real desde 001–007, journal de ocho filas, segunda aplicación sin cambios, definiciones de los SP idénticas antes/después y trigger corregido disponible. No se alteran recursos embebidos de los procedimientos ni migraciones históricas.
+
+ValidateSchema distingue las once tablas aprobadas de los journals opcionales exactos dbo.SchemaVersions y dbo.DemoSeedVersions. No permite patrones de nombres ni ignora cualquier tabla adicional. Las comprobaciones de columnas/tipos, PK/FK/UQ/CHECK/DEFAULT, índices y RowVersion permanecen intactas. Regresiones prueban seed habilitado/deshabilitado, ausencia de Properties (51000) y tabla inesperada (51001), con rollback de DDL negativo.
+
+ValidateReports conserva los nueve incumplimientos y el error 51910. Su archivo, los SP y la deuda de sus indicadores no se modifican. El estado y las evidencias de cierre están en la sección de remediación de TECHNICAL_AUDIT.md; las secciones posteriores conservan resultados históricos.
+
 ## T09: procedimientos manuales preservados
 
 Ubicación canónica: database/scripts/dbo.usp_GetPropertiesSummary.sql y dbo.usp_GetTechniciansWorkload.sql. Autoría manual del desarrollador; revisión e integración/pruebas C# con apoyo de Codex. No se movieron, duplicaron ni editaron durante la integración.
